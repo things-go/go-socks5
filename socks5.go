@@ -112,28 +112,29 @@ func (s *Server) Serve(l net.Listener) error {
 }
 
 // ServeConn is used to serve a single connection.
-func (s *Server) ServeConn(conn net.Conn) error {
+func (s *Server) ServeConn(conn net.Conn) (err error) {
 	defer conn.Close()
 	bufConn := bufio.NewReader(conn)
 
 	// Read the version byte
 	version := []byte{0}
-	if _, err := bufConn.Read(version); err != nil {
+	if _, err = bufConn.Read(version); err != nil {
 		s.config.Logger.Errorf("failed to get version byte: %v", err)
 		return err
 	}
 
+	var authContext *AuthContext
 	// Ensure we are compatible
-	if version[0] != socks5Version {
+	if version[0] == socks5Version {
+		// Authenticate the connection
+		authContext, err = s.authenticate(conn, bufConn)
+		if err != nil {
+			err = fmt.Errorf("failed to authenticate: %v", err)
+			s.config.Logger.Errorf("%v", err)
+			return err
+		}
+	} else if version[0] != socks4Version {
 		err := fmt.Errorf("unsupported SOCKS version: %v", version[0])
-		s.config.Logger.Errorf("%v", err)
-		return err
-	}
-
-	// Authenticate the connection
-	authContext, err := s.authenticate(conn, bufConn)
-	if err != nil {
-		err = fmt.Errorf("failed to authenticate: %v", err)
 		s.config.Logger.Errorf("%v", err)
 		return err
 	}
@@ -142,19 +143,20 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	if err != nil {
 		if err == unrecognizedAddrType {
 			if err := sendReply(conn, addrTypeNotSupported); err != nil {
-				return fmt.Errorf("failed to send reply, %w", err)
+				return fmt.Errorf("failed to send reply, %v", err)
 			}
 		}
-		return fmt.Errorf("failed to read destination address, %w", err)
+		return fmt.Errorf("failed to read destination address, %v", err)
 	}
-	request.AuthContext = authContext
+	if request.Header.Version == socks5Version {
+		request.AuthContext = authContext
+	}
 	if client, ok := conn.RemoteAddr().(*net.TCPAddr); ok {
 		request.RemoteAddr = &AddrSpec{IP: client.IP, Port: client.Port}
 	}
-
 	// Process the client request
 	if err := s.handleRequest(conn, request); err != nil {
-		err = fmt.Errorf("failed to handle request, %w", err)
+		err = fmt.Errorf("failed to handle request, %v", err)
 		s.config.Logger.Errorf("%v", err)
 		return err
 	}

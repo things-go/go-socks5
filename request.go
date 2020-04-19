@@ -44,7 +44,7 @@ func NewRequest(bufConn io.Reader) (*Request, error) {
 	// Read the version and command
 	tmp := make([]byte, 2)
 	if _, err = io.ReadFull(bufConn, tmp); err != nil {
-		return nil, fmt.Errorf("failed to get header version and command, %w", err)
+		return nil, fmt.Errorf("failed to get header version and command, %v", err)
 	}
 	hd.Version = tmp[0]
 	hd.Command = tmp[1]
@@ -63,26 +63,26 @@ func NewRequest(bufConn io.Reader) (*Request, error) {
 		// read port and ipv4 ip
 		tmp = make([]byte, reqPortLen+reqIPv4Addr)
 		if _, err = io.ReadFull(bufConn, tmp); err != nil {
-			return nil, fmt.Errorf("failed to get socks4 header port and ip, %w", err)
+			return nil, fmt.Errorf("failed to get socks4 header port and ip, %v", err)
 		}
 		hd.Address.Port = buildPort(tmp[0], tmp[1])
 		hd.Address.IP = tmp[2:]
 	} else if hd.Version == socks5Version {
 		tmp = make([]byte, reqReservedLen+reqAddrTypeLen)
 		if _, err = io.ReadFull(bufConn, tmp); err != nil {
-			return nil, fmt.Errorf("failed to get header RSV and address type, %w", err)
+			return nil, fmt.Errorf("failed to get header RSV and address type, %v", err)
 		}
 		hd.Reserved = tmp[0]
 		hd.addrType = tmp[1]
 		switch hd.addrType {
 		case fqdnAddress:
 			if _, err = io.ReadFull(bufConn, tmp[:1]); err != nil {
-				return nil, fmt.Errorf("failed to get header, %w", err)
+				return nil, fmt.Errorf("failed to get header, %v", err)
 			}
 			addrLen := int(tmp[0])
 			addr := make([]byte, addrLen+2)
 			if _, err = io.ReadFull(bufConn, addr); err != nil {
-				return nil, fmt.Errorf("failed to get header, %w", err)
+				return nil, fmt.Errorf("failed to get header, %v", err)
 			}
 			hd.Address.FQDN = string(addr[:addrLen])
 			hd.Address.Port = buildPort(addr[addrLen], addr[addrLen+1])
@@ -90,7 +90,7 @@ func NewRequest(bufConn io.Reader) (*Request, error) {
 			addrLen := reqIPv4Addr
 			addr := make([]byte, addrLen+2)
 			if _, err = io.ReadFull(bufConn, addr); err != nil {
-				return nil, fmt.Errorf("failed to get header, %w", err)
+				return nil, fmt.Errorf("failed to get header, %v", err)
 			}
 			hd.Address.IP = addr[:addrLen]
 			hd.Address.Port = buildPort(addr[addrLen], addr[addrLen+1])
@@ -98,7 +98,7 @@ func NewRequest(bufConn io.Reader) (*Request, error) {
 			addrLen := reqIPv6Addr
 			addr := make([]byte, addrLen+2)
 			if _, err = io.ReadFull(bufConn, addr); err != nil {
-				return nil, fmt.Errorf("failed to get header, %w", err)
+				return nil, fmt.Errorf("failed to get header, %v", err)
 			}
 			hd.Address.IP = addr[:addrLen]
 			hd.Address.Port = buildPort(addr[addrLen], addr[addrLen+1])
@@ -124,7 +124,7 @@ func (s *Server) handleRequest(write io.Writer, req *Request) error {
 		ctx_, addr, err := s.config.Resolver.Resolve(ctx, dest.FQDN)
 		if err != nil {
 			if err := sendReply(write, hostUnreachable); err != nil {
-				return fmt.Errorf("failed to send reply, %w", err)
+				return fmt.Errorf("failed to send reply, %v", err)
 			}
 			return fmt.Errorf("failed to resolve destination[%v], %v", dest.FQDN, err)
 		}
@@ -148,7 +148,7 @@ func (s *Server) handleRequest(write io.Writer, req *Request) error {
 		return s.handleAssociate(ctx, write, req)
 	default:
 		if err := sendReply(write, commandNotSupported); err != nil {
-			return fmt.Errorf("failed to send reply, %w", err)
+			return fmt.Errorf("failed to send reply, %v", err)
 		}
 		return fmt.Errorf("unsupported command[%v]", req.Command)
 	}
@@ -159,7 +159,7 @@ func (s *Server) handleConnect(ctx context.Context, w io.Writer, req *Request) e
 	// Check if this is allowed
 	if ctx_, ok := s.config.Rules.Allow(ctx, req); !ok {
 		if err := sendReply(w, ruleFailure); err != nil {
-			return fmt.Errorf("failed to send reply, %w", err)
+			return fmt.Errorf("failed to send reply, %v", err)
 		}
 		return fmt.Errorf("connect to %v blocked by rules", req.DestAddr)
 	} else {
@@ -183,15 +183,15 @@ func (s *Server) handleConnect(ctx context.Context, w io.Writer, req *Request) e
 			resp = networkUnreachable
 		}
 		if err := sendReply(w, resp); err != nil {
-			return fmt.Errorf("failed to send reply, %w", err)
+			return fmt.Errorf("failed to send reply, %v", err)
 		}
-		return fmt.Errorf("connect to %v failed, %w", req.DestAddr, err)
+		return fmt.Errorf("connect to %v failed, %v", req.DestAddr, err)
 	}
 	defer target.Close()
 
 	// Send success
 	if err := sendReply(w, successReply, target.LocalAddr()); err != nil {
-		return fmt.Errorf("failed to send reply, %w", err)
+		return fmt.Errorf("failed to send reply, %v", err)
 	}
 
 	// Start proxying
@@ -215,7 +215,7 @@ func (s *Server) handleBind(ctx context.Context, conn io.Writer, req *Request) e
 	// Check if this is allowed
 	if ctx_, ok := s.config.Rules.Allow(ctx, req); !ok {
 		if err := sendReply(conn, ruleFailure); err != nil {
-			return fmt.Errorf("failed to send reply, %w", err)
+			return fmt.Errorf("failed to send reply, %v", err)
 		}
 		return fmt.Errorf("bind to %v blocked by rules", req.DestAddr)
 	} else {
@@ -243,7 +243,7 @@ func (s *Server) handleAssociate(ctx context.Context, conn io.Writer, req *Reque
 
 	// TODO: Support associate
 	if err := sendReply(conn, commandNotSupported); err != nil {
-		return fmt.Errorf("failed to send reply, %w", err)
+		return fmt.Errorf("failed to send reply, %v", err)
 	}
 	return nil
 }
