@@ -5,66 +5,16 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"strconv"
 	"strings"
-)
-
-const (
-	ConnectCommand   = uint8(1)
-	BindCommand      = uint8(2)
-	AssociateCommand = uint8(3)
-	ipv4Address      = uint8(1)
-	fqdnAddress      = uint8(3)
-	ipv6Address      = uint8(4)
-)
-
-const (
-	successReply uint8 = iota
-	serverFailure
-	ruleFailure
-	networkUnreachable
-	hostUnreachable
-	connectionRefused
-	ttlExpired
-	commandNotSupported
-	addrTypeNotSupported
 )
 
 var (
 	unrecognizedAddrType = fmt.Errorf("Unrecognized address type")
 )
 
-// AddressRewriter is used to rewrite a destination transparently
-type AddressRewriter interface {
-	Rewrite(ctx context.Context, request *Request) (context.Context, *AddrSpec)
-}
-
-// AddrSpec is used to return the target AddrSpec
-// which may be specified as IPv4, IPv6, or a FQDN
-type AddrSpec struct {
-	FQDN string
-	IP   net.IP
-	Port int
-}
-
-func (a *AddrSpec) String() string {
-	if a.FQDN != "" {
-		return fmt.Sprintf("%s (%s):%d", a.FQDN, a.IP, a.Port)
-	}
-	return fmt.Sprintf("%s:%d", a.IP, a.Port)
-}
-
-// Address returns a string suitable to dial; prefer returning IP-based
-// address, fallback to FQDN
-func (a AddrSpec) Address() string {
-	if 0 != len(a.IP) {
-		return net.JoinHostPort(a.IP.String(), strconv.Itoa(a.Port))
-	}
-	return net.JoinHostPort(a.FQDN, strconv.Itoa(a.Port))
-}
-
 // A Request represents request received by a server
 type Request struct {
+	Header
 	// Protocol version
 	Version uint8
 	// Requested command
@@ -103,15 +53,22 @@ func NewRequest(bufConn io.Reader) (*Request, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	request := &Request{
+	return &Request{
 		Version:  socks5Version,
 		Command:  header[1],
 		DestAddr: dest,
 		bufConn:  bufConn,
-	}
-
-	return request, nil
+	}, nil
+	//hd, err := Parse(bufConn)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//return &Request{
+	//	Version:  hd.Version,
+	//	Command:  hd.Command,
+	//	DestAddr: &hd.Address,
+	//	bufConn:  bufConn,
+	//}, nil
 }
 
 // handleRequest is used for request processing after authentication
@@ -309,29 +266,33 @@ func addrSpecFromNetAddr(addr net.Addr) *AddrSpec {
 
 // sendReply is used to send a reply message
 func sendReply(w io.Writer, resp uint8, addr *AddrSpec) error {
+	var head Header
 	// Format the address
-	var addrType uint8
 	var addrBody []byte
 	var addrPort uint16
+
+	head.Version = socks5Version
+	head.Command = resp
+	head.Reserved = 0
 	switch {
 	case addr == nil:
-		addrType = ipv4Address
+		head.addrType = ipv4Address
 		addrBody = []byte{0, 0, 0, 0}
 		addrPort = 0
 
 	case addr.FQDN != "":
-		addrType = fqdnAddress
+		head.addrType = fqdnAddress
 		addrBody = append([]byte{byte(len(addr.FQDN))}, addr.FQDN...)
 		addrPort = uint16(addr.Port)
 
 	case addr.IP.To4() != nil:
-		addrType = ipv4Address
-		addrBody = []byte(addr.IP.To4())
+		head.addrType = ipv4Address
+		addrBody = addr.IP.To4()
 		addrPort = uint16(addr.Port)
 
 	case addr.IP.To16() != nil:
-		addrType = ipv6Address
-		addrBody = []byte(addr.IP.To16())
+		head.addrType = ipv6Address
+		addrBody = addr.IP.To16()
 		addrPort = uint16(addr.Port)
 
 	default:
@@ -339,14 +300,10 @@ func sendReply(w io.Writer, resp uint8, addr *AddrSpec) error {
 	}
 
 	// Format the message
-	msg := make([]byte, 6+len(addrBody))
-	msg[0] = socks5Version
-	msg[1] = resp
-	msg[2] = 0 // Reserved
-	msg[3] = addrType
-	copy(msg[4:], addrBody)
-	msg[4+len(addrBody)] = byte(addrPort >> 8)
-	msg[4+len(addrBody)+1] = byte(addrPort & 0xff)
+	msg := make([]byte, 0, 6+len(addrBody))
+	msg = append(msg, head.Version, head.Command, head.Reserved, head.addrType)
+	msg = append(msg, addrBody...)
+	msg = append(msg, byte(addrPort>>8), byte(addrPort&0xff))
 
 	// Send the message
 	_, err := w.Write(msg)

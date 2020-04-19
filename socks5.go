@@ -9,10 +9,6 @@ import (
 	"net"
 )
 
-const (
-	socks5Version = uint8(5)
-)
-
 // Config is used to setup and configure a Server
 type Config struct {
 	// AuthMethods can be provided to implement custom authentication
