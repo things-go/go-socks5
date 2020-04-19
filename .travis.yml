@@ -1,4 +1,16 @@
 language: go
+
 go:
-  - 1.1
-  - tip
+  - 1.11.x
+  - 1.12.x
+  - 1.13.x
+  - 1.14.x
+
+install:
+  - go get -t -v ./...
+
+script:
+  - go test -v -benchmem -test.bench=".*" -coverprofile=coverage.txt -covermode=atomic ./...
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
