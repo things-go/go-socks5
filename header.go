@@ -1,7 +1,6 @@
 package socks5
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"strconv"
@@ -54,11 +53,6 @@ const (
 	//position settings for socks4
 	req4PortBytePos = uint8(2)
 )
-
-// AddressRewriter is used to rewrite a destination transparently
-type AddressRewriter interface {
-	Rewrite(ctx context.Context, request *Request) (context.Context, *AddrSpec)
-}
 
 // AddrSpec is used to return the target AddrSpec
 // which may be specified as IPv4, IPv6, or a FQDN
