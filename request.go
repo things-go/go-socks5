@@ -1,6 +1,7 @@
 package socks5
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -36,39 +37,78 @@ type conn interface {
 }
 
 // NewRequest creates a new Request from the tcp connection
-func NewRequest(bufConn io.Reader) (*Request, error) {
-	// Read the version byte
-	header := []byte{0, 0, 0}
-	if _, err := io.ReadAtLeast(bufConn, header, 3); err != nil {
-		return nil, fmt.Errorf("Failed to get command version: %v", err)
+func NewRequest(r io.Reader) (*Request, error) {
+	var hd Header
+	var err error
+
+	h := make([]byte, 5)
+	bufConn := bufio.NewReader(r)
+	if h, err = bufConn.Peek(5); err != nil {
+		return nil, fmt.Errorf("failed to get header: %v", err)
 	}
 
-	// Ensure we are compatible
-	if header[0] != socks5Version {
-		return nil, fmt.Errorf("Unsupported command version: %v", header[0])
+	hd.Version = h[0]
+	hd.Command = h[1]
+
+	if hd.Version != socks5Version && hd.Version != socks4Version {
+		return nil, fmt.Errorf("unrecognized SOCKS version")
+	}
+	if hd.Command != ConnectCommand && hd.Command != BindCommand && hd.Command != AssociateCommand {
+		return nil, fmt.Errorf("unrecognized command")
+	}
+	if hd.Version == socks4Version && hd.Command == AssociateCommand {
+		return nil, fmt.Errorf("wrong version for command")
 	}
 
-	// Read in the destination address
-	dest, err := readAddrSpec(bufConn)
-	if err != nil {
-		return nil, err
+	hd.headerLen = reqVersionLen + reqCommandLen + reqPortLen
+	if hd.Version == socks4Version {
+		hd.addrLen = reqIPv4Addr
+	} else if hd.Version == socks5Version {
+		hd.Reserved = h[2]
+		hd.addrType = h[3]
+		hd.headerLen += reqReservedLen + reqAddrTypeLen
+		switch hd.addrType {
+		case fqdnAddress:
+			hd.headerLen += 1
+			hd.addrLen = int(h[4])
+		case ipv4Address:
+			hd.addrLen = reqIPv4Addr
+		case ipv6Address:
+			hd.addrLen = reqIPv6Addr
+		default:
+			return nil, unrecognizedAddrType
+		}
+	}
+	hd.headerLen += hd.addrLen
+	var bHeader []byte
+	if bHeader, err = bufConn.Peek(hd.headerLen); err != nil {
+		return nil, fmt.Errorf("failed to get header address: %v", err)
+	}
+
+	switch hd.addrType {
+	case ipv4Address:
+		hd.Address.IP = bHeader[reqAddrBytePos : reqAddrBytePos+reqIPv4Addr]
+		if hd.Version == socks4Version {
+			hd.Address.Port = buildPort(bHeader[req4PortBytePos], bHeader[req4PortBytePos+1])
+		} else if hd.Version == socks5Version {
+			hd.Address.Port = buildPort(bHeader[hd.headerLen-2], bHeader[hd.headerLen-1])
+		}
+	case ipv6Address:
+		hd.Address.IP = bHeader[reqAddrBytePos : reqAddrBytePos+reqIPv6Addr]
+		hd.Address.Port = buildPort(bHeader[hd.headerLen-2], bHeader[hd.headerLen-1])
+	case fqdnAddress:
+		hd.Address.FQDN = string(bHeader[reqAddrBytePos : hd.headerLen-reqPortLen])
+		hd.Address.Port = buildPort(bHeader[hd.headerLen-2], bHeader[hd.headerLen-1])
+	}
+	if _, err := bufConn.Discard(hd.headerLen); err != nil {
+		return nil, fmt.Errorf("failed to discard header: %v", err)
 	}
 	return &Request{
-		Version:  socks5Version,
-		Command:  header[1],
-		DestAddr: dest,
+		Version:  hd.Version,
+		Command:  hd.Command,
+		DestAddr: &hd.Address,
 		bufConn:  bufConn,
 	}, nil
-	//hd, err := Parse(bufConn)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//return &Request{
-	//	Version:  hd.Version,
-	//	Command:  hd.Command,
-	//	DestAddr: &hd.Address,
-	//	bufConn:  bufConn,
-	//}, nil
 }
 
 // handleRequest is used for request processing after authentication

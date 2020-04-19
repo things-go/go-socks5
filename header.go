@@ -1,11 +1,8 @@
 package socks5
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"io"
-	"log"
 	"net"
 	"strconv"
 )
@@ -121,76 +118,6 @@ func (h Header) Bytes() (b []byte) {
 		b = append(b, hiPort, loPort)
 	}
 	return b
-}
-
-func Parse(r io.Reader) (hd Header, err error) {
-	h := make([]byte, 5)
-	bufConn := bufio.NewReader(r)
-	if h, err = bufConn.Peek(5); err != nil {
-		return hd, fmt.Errorf("failed to get header: %v", err)
-	}
-
-	hd.Version = h[0]
-	hd.Command = h[1]
-
-	if hd.Version != socks5Version && hd.Version != socks4Version {
-		return hd, fmt.Errorf("unrecognized SOCKS version")
-	}
-	if hd.Command != ConnectCommand && hd.Command != BindCommand && hd.Command != AssociateCommand {
-		return hd, fmt.Errorf("unrecognized command")
-	}
-	if hd.Version == socks4Version && hd.Command == AssociateCommand {
-		return hd, fmt.Errorf("wrong version for command")
-	}
-
-	hd.headerLen = reqVersionLen + reqCommandLen + reqPortLen
-	if hd.Version == socks4Version {
-		hd.addrLen = reqIPv4Addr
-	} else if hd.Version == socks5Version {
-		hd.Reserved = h[2]
-		hd.addrType = h[3]
-		hd.headerLen += reqReservedLen + reqAddrTypeLen
-		switch hd.addrType {
-		case fqdnAddress:
-			hd.headerLen += 1
-			hd.addrLen = int(h[4])
-		case ipv4Address:
-			hd.addrLen = reqIPv4Addr
-		case ipv6Address:
-			hd.addrLen = reqIPv6Addr
-		default:
-			return hd, unrecognizedAddrType
-		}
-	}
-	hd.headerLen += hd.addrLen
-
-	bHeader := make([]byte, hd.headerLen)
-	if _, err = io.ReadAtLeast(bufConn, bHeader, hd.headerLen); err != nil {
-		return hd, fmt.Errorf("failed to get header address: %v", err)
-	}
-
-	switch hd.addrType {
-	case ipv4Address:
-		hd.Address.IP = bHeader[reqAddrBytePos : reqAddrBytePos+reqIPv4Addr]
-		if hd.Version == socks4Version {
-			hd.Address.Port = buildPort(bHeader[req4PortBytePos], bHeader[req4PortBytePos+1])
-		} else if hd.Version == socks5Version {
-			hd.Address.Port = buildPort(bHeader[hd.headerLen-2], bHeader[hd.headerLen-1])
-		}
-	case ipv6Address:
-		hd.Address.IP = bHeader[reqAddrBytePos : reqAddrBytePos+reqIPv6Addr]
-		hd.Address.Port = buildPort(bHeader[hd.headerLen-2], bHeader[hd.headerLen-1])
-	case fqdnAddress:
-		hd.Address.FQDN = string(bHeader[reqAddrBytePos : hd.headerLen-reqPortLen])
-		hd.Address.Port = buildPort(bHeader[hd.headerLen-2], bHeader[hd.headerLen-1])
-	}
-	log.Printf("%+v", hd)
-	return hd, nil
-	//payload = make([]byte, 4)
-	//if _, err := bufConn.Read(payload); err != nil {
-	//	return hd, payload, fmt.Errorf("failed read payload: %v", err)
-	//}
-	//return hd, payload, nil
 }
 
 func buildPort(hi, lo byte) int {
