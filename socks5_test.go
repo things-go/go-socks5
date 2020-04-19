@@ -43,7 +43,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 	cator := UserPassAuthenticator{Credentials: creds}
 	conf := &Config{
 		AuthMethods: []Authenticator{cator},
-		Logger:      log.New(os.Stdout, "", log.LstdFlags),
+		Logger:      NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags)),
 	}
 	serv, err := New(conf)
 	if err != nil {
