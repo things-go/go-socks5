@@ -89,9 +89,7 @@ type Header struct {
 	// Address in socks message
 	Address AddrSpec
 	// private stuff set when Header parsed
-	addrType  uint8
-	addrLen   int
-	headerLen int
+	addrType uint8
 }
 
 func (h Header) Bytes() (b []byte) {

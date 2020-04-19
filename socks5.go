@@ -119,14 +119,14 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	// Read the version byte
 	version := []byte{0}
 	if _, err := bufConn.Read(version); err != nil {
-		s.config.Logger.Errorf("socks: failed to get version byte: %v", err)
+		s.config.Logger.Errorf("failed to get version byte: %v", err)
 		return err
 	}
 
 	// Ensure we are compatible
 	if version[0] != socks5Version {
 		err := fmt.Errorf("unsupported SOCKS version: %v", version[0])
-		s.config.Logger.Errorf("socks: %v", err)
+		s.config.Logger.Errorf("%v", err)
 		return err
 	}
 
@@ -134,14 +134,14 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	authContext, err := s.authenticate(conn, bufConn)
 	if err != nil {
 		err = fmt.Errorf("failed to authenticate: %v", err)
-		s.config.Logger.Errorf("socks: %v", err)
+		s.config.Logger.Errorf("%v", err)
 		return err
 	}
 
 	request, err := NewRequest(bufConn)
 	if err != nil {
 		if err == unrecognizedAddrType {
-			if err := sendReply(conn, addrTypeNotSupported, nil); err != nil {
+			if err := sendReply(conn, addrTypeNotSupported); err != nil {
 				return fmt.Errorf("failed to send reply, %w", err)
 			}
 		}
@@ -155,7 +155,7 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	// Process the client request
 	if err := s.handleRequest(conn, request); err != nil {
 		err = fmt.Errorf("failed to handle request, %w", err)
-		s.config.Logger.Errorf("socks: %v", err)
+		s.config.Logger.Errorf("%v", err)
 		return err
 	}
 

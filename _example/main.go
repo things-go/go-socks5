@@ -1,12 +1,17 @@
 package main
 
 import (
+	"log"
+	"os"
+
 	"github.com/thinkgos/socks5"
 )
 
 func main() {
 	// Create a SOCKS5 server
-	conf := &socks5.Config{}
+	conf := &socks5.Config{
+		Logger: socks5.NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags)),
+	}
 	server, err := socks5.New(conf)
 	if err != nil {
 		panic(err)
