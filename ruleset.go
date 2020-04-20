@@ -36,6 +36,5 @@ func (p *PermitCommand) Allow(ctx context.Context, req *Request) (context.Contex
 	case AssociateCommand:
 		return ctx, p.EnableAssociate
 	}
-
 	return ctx, false
 }

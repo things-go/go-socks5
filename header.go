@@ -2,6 +2,7 @@ package socks5
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"strconv"
 )
@@ -87,6 +88,73 @@ type Header struct {
 	Address AddrSpec
 	// private stuff set when Header parsed
 	addrType uint8
+}
+
+func Parse(r io.Reader) (hd Header, err error) {
+	// Read the version and command
+	tmp := make([]byte, headVERLen+headCMDLen)
+	if _, err = io.ReadFull(r, tmp); err != nil {
+		return hd, fmt.Errorf("failed to get header version and command, %v", err)
+	}
+	hd.Version = tmp[0]
+	hd.Command = tmp[1]
+
+	if hd.Version != socks5Version && hd.Version != socks4Version {
+		return hd, fmt.Errorf("unrecognized SOCKS version[%d]", hd.Version)
+	}
+	if hd.Command != ConnectCommand && hd.Command != BindCommand && hd.Command != AssociateCommand {
+		return hd, fmt.Errorf("unrecognized command[%d]", hd.Command)
+	}
+	if hd.Version == socks4Version && hd.Command == AssociateCommand {
+		return hd, fmt.Errorf("wrong version for command")
+	}
+
+	if hd.Version == socks4Version {
+		// read port and ipv4 ip
+		tmp = make([]byte, headPORTLen+net.IPv4len)
+		if _, err = io.ReadFull(r, tmp); err != nil {
+			return hd, fmt.Errorf("failed to get socks4 header port and ip, %v", err)
+		}
+		hd.Address.Port = buildPort(tmp[0], tmp[1])
+		hd.Address.IP = tmp[2:]
+	} else if hd.Version == socks5Version {
+		tmp = make([]byte, headRSVLen+headATYPLen)
+		if _, err = io.ReadFull(r, tmp); err != nil {
+			return hd, fmt.Errorf("failed to get header RSV and address type, %v", err)
+		}
+		hd.Reserved = tmp[0]
+		hd.addrType = tmp[1]
+		switch hd.addrType {
+		case fqdnAddress:
+			if _, err = io.ReadFull(r, tmp[:1]); err != nil {
+				return hd, fmt.Errorf("failed to get header, %v", err)
+			}
+			addrLen := int(tmp[0])
+			addr := make([]byte, addrLen+2)
+			if _, err = io.ReadFull(r, addr); err != nil {
+				return hd, fmt.Errorf("failed to get header, %v", err)
+			}
+			hd.Address.FQDN = string(addr[:addrLen])
+			hd.Address.Port = buildPort(addr[addrLen], addr[addrLen+1])
+		case ipv4Address:
+			addr := make([]byte, net.IPv4len+2)
+			if _, err = io.ReadFull(r, addr); err != nil {
+				return hd, fmt.Errorf("failed to get header, %v", err)
+			}
+			hd.Address.IP = addr[:net.IPv4len]
+			hd.Address.Port = buildPort(addr[net.IPv4len], addr[net.IPv4len+1])
+		case ipv6Address:
+			addr := make([]byte, net.IPv6len+2)
+			if _, err = io.ReadFull(r, addr); err != nil {
+				return hd, fmt.Errorf("failed to get header, %v", err)
+			}
+			hd.Address.IP = addr[:net.IPv6len]
+			hd.Address.Port = buildPort(addr[net.IPv6len], addr[net.IPv6len+1])
+		default:
+			return hd, unrecognizedAddrType
+		}
+	}
+	return hd, nil
 }
 
 func (h Header) Bytes() (b []byte) {
