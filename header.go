@@ -34,6 +34,7 @@ const (
 	// 0x09 - 0xff unassigned
 )
 
+// head len defined
 const (
 	// common fields
 	reqProtocolVersionBytePos = uint8(0) // proto version pos
@@ -41,17 +42,13 @@ const (
 	reqAddrBytePos            = uint8(4)
 	reqStartLen               = uint8(4)
 
-	reqVersionLen  = 1
-	reqCommandLen  = 1
-	reqPortLen     = 2
-	reqReservedLen = 1
-	reqAddrTypeLen = 1
-	reqIPv4Addr    = 4
-	reqIPv6Addr    = 8
-	reqFQDNAddr    = 249
-
-	//position settings for socks4
-	req4PortBytePos = uint8(2)
+	headVERLen      = 1
+	headCMDLen      = 1
+	headRSVLen      = 1
+	headATYPLen     = 1
+	headPORTLen     = 2
+	headFQDNAddrLen = 1
+	reqFQDNAddr     = 249
 )
 
 // AddrSpec is used to return the target AddrSpec
@@ -103,6 +100,7 @@ func (h Header) Bytes() (b []byte) {
 		b = append(b, h.Reserved)
 		b = append(b, h.addrType)
 		if h.addrType == fqdnAddress {
+			b = append(b, byte(len(h.Address.FQDN)))
 			b = append(b, []byte(h.Address.FQDN)...)
 		} else {
 			b = append(b, h.Address.IP...)

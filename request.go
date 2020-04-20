@@ -38,11 +38,19 @@ type conn interface {
 
 // NewRequest creates a new Request from the tcp connection
 func NewRequest(bufConn io.Reader) (*Request, error) {
+	/*
+		The SOCKS request is formed as follows:
+		+----+-----+-------+------+----------+----------+
+		|VER | CMD |  RSV  | ATYP | DST.ADDR | DST.PORT |
+		+----+-----+-------+------+----------+----------+
+		| 1  |  1  | X'00' |  1   | Variable |    2     |
+		+----+-----+-------+------+----------+----------+
+	*/
 	var hd Header
 	var err error
 
 	// Read the version and command
-	tmp := make([]byte, 2)
+	tmp := make([]byte, headVERLen+headCMDLen)
 	if _, err = io.ReadFull(bufConn, tmp); err != nil {
 		return nil, fmt.Errorf("failed to get header version and command, %v", err)
 	}
@@ -61,14 +69,14 @@ func NewRequest(bufConn io.Reader) (*Request, error) {
 
 	if hd.Version == socks4Version {
 		// read port and ipv4 ip
-		tmp = make([]byte, reqPortLen+reqIPv4Addr)
+		tmp = make([]byte, headPORTLen+net.IPv4len)
 		if _, err = io.ReadFull(bufConn, tmp); err != nil {
 			return nil, fmt.Errorf("failed to get socks4 header port and ip, %v", err)
 		}
 		hd.Address.Port = buildPort(tmp[0], tmp[1])
 		hd.Address.IP = tmp[2:]
 	} else if hd.Version == socks5Version {
-		tmp = make([]byte, reqReservedLen+reqAddrTypeLen)
+		tmp = make([]byte, headRSVLen+headATYPLen)
 		if _, err = io.ReadFull(bufConn, tmp); err != nil {
 			return nil, fmt.Errorf("failed to get header RSV and address type, %v", err)
 		}
@@ -87,21 +95,19 @@ func NewRequest(bufConn io.Reader) (*Request, error) {
 			hd.Address.FQDN = string(addr[:addrLen])
 			hd.Address.Port = buildPort(addr[addrLen], addr[addrLen+1])
 		case ipv4Address:
-			addrLen := reqIPv4Addr
-			addr := make([]byte, addrLen+2)
+			addr := make([]byte, net.IPv4len+2)
 			if _, err = io.ReadFull(bufConn, addr); err != nil {
 				return nil, fmt.Errorf("failed to get header, %v", err)
 			}
-			hd.Address.IP = addr[:addrLen]
-			hd.Address.Port = buildPort(addr[addrLen], addr[addrLen+1])
+			hd.Address.IP = addr[:net.IPv4len]
+			hd.Address.Port = buildPort(addr[net.IPv4len], addr[net.IPv4len+1])
 		case ipv6Address:
-			addrLen := reqIPv6Addr
-			addr := make([]byte, addrLen+2)
+			addr := make([]byte, net.IPv6len+2)
 			if _, err = io.ReadFull(bufConn, addr); err != nil {
 				return nil, fmt.Errorf("failed to get header, %v", err)
 			}
-			hd.Address.IP = addr[:addrLen]
-			hd.Address.Port = buildPort(addr[addrLen], addr[addrLen+1])
+			hd.Address.IP = addr[:net.IPv6len]
+			hd.Address.Port = buildPort(addr[net.IPv6len], addr[net.IPv6len+1])
 		default:
 			return nil, unrecognizedAddrType
 		}
@@ -248,59 +254,53 @@ func (s *Server) handleAssociate(ctx context.Context, conn io.Writer, req *Reque
 	return nil
 }
 
-func addrSpecFromNetAddr(addr net.Addr) *AddrSpec {
-	if tcpAddr, ok := addr.(*net.TCPAddr); ok {
-		return &AddrSpec{IP: tcpAddr.IP, Port: tcpAddr.Port}
-	}
-	return nil
-}
-
 // sendReply is used to send a reply message
 func sendReply(w io.Writer, resp uint8, bindAddr ...net.Addr) error {
-	var head Header
-	// Format the address
-	var addrBody []byte
-	var addrPort uint16
+	/*
+		The SOCKS response is formed as follows:
+		+----+-----+-------+------+----------+----------+
+		|VER | CMD |  RSV  | ATYP | BND.ADDR | BND.PORT |
+		+----+-----+-------+------+----------+----------+
+		| 1  |  1  | X'00' |  1   | Variable |    2     |
+		+----+-----+-------+------+----------+----------+
+	*/
 
-	head.Version = socks5Version
-	head.Command = resp
-	head.Reserved = 0
+	head := Header{
+		Version:  socks5Version,
+		Command:  resp,
+		Reserved: 0,
+	}
 
 	if len(bindAddr) == 0 {
 		head.addrType = ipv4Address
-		addrBody = []byte{0, 0, 0, 0}
-		addrPort = 0
+		head.Address.IP = []byte{0, 0, 0, 0}
+		head.Address.Port = 0
 	} else if tcpAddr, ok := bindAddr[0].(*net.TCPAddr); !ok || tcpAddr == nil {
 		head.addrType = ipv4Address
-		addrBody = []byte{0, 0, 0, 0}
-		addrPort = 0
+		head.Address.IP = []byte{0, 0, 0, 0}
+		head.Address.Port = 0
 	} else {
 		addrSpec := AddrSpec{IP: tcpAddr.IP, Port: tcpAddr.Port}
 		switch {
 		case addrSpec.FQDN != "":
 			head.addrType = fqdnAddress
-			addrBody = append([]byte{byte(len(addrSpec.FQDN))}, addrSpec.FQDN...)
-			addrPort = uint16(addrSpec.Port)
+			head.Address.FQDN = addrSpec.FQDN
+			head.Address.Port = addrSpec.Port
 		case addrSpec.IP.To4() != nil:
 			head.addrType = ipv4Address
-			addrBody = addrSpec.IP.To4()
-			addrPort = uint16(addrSpec.Port)
+			head.Address.IP = addrSpec.IP.To4()
+			head.Address.Port = addrSpec.Port
 		case addrSpec.IP.To16() != nil:
 			head.addrType = ipv6Address
-			addrBody = addrSpec.IP.To16()
-			addrPort = uint16(addrSpec.Port)
+			head.Address.IP = addrSpec.IP.To16()
+			head.Address.Port = addrSpec.Port
 		default:
 			return fmt.Errorf("failed to format address[%v]", bindAddr)
 		}
 	}
-	// Format the message
-	msg := make([]byte, 0, 6+len(addrBody))
-	msg = append(msg, head.Version, head.Command, head.Reserved, head.addrType)
-	msg = append(msg, addrBody...)
-	msg = append(msg, byte(addrPort>>8), byte(addrPort&0xff))
 
 	// Send the message
-	_, err := w.Write(msg)
+	_, err := w.Write(head.Bytes())
 	return err
 }
 
