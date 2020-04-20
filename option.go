@@ -66,7 +66,7 @@ func WithBindIP(ip net.IP) Option {
 	return func(s *Server) {
 		if len(ip) != 0 {
 			s.bindIP = make(net.IP, 0, len(ip))
-			s.bindIP = append(s.bindIP, ip)
+			s.bindIP = append(s.bindIP, ip...)
 		}
 	}
 }
