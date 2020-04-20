@@ -64,8 +64,9 @@ func WithRewriter(rew AddressRewriter) Option {
 // bindIP is used for bind or udp associate
 func WithBindIP(ip net.IP) Option {
 	return func(s *Server) {
-		if ip != nil {
-
+		if len(ip) != 0 {
+			s.bindIP = make(net.IP, 0, len(ip))
+			s.bindIP = append(s.bindIP, ip)
 		}
 	}
 }
