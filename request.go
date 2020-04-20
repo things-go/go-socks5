@@ -161,10 +161,10 @@ func (s *Server) handleRequest(write io.Writer, req *Request) error {
 }
 
 // handleConnect is used to handle a connect command
-func (s *Server) handleConnect(ctx context.Context, w io.Writer, req *Request) error {
+func (s *Server) handleConnect(ctx context.Context, writer io.Writer, req *Request) error {
 	// Check if this is allowed
 	if ctx_, ok := s.config.Rules.Allow(ctx, req); !ok {
-		if err := sendReply(w, req.Header, ruleFailure); err != nil {
+		if err := sendReply(writer, req.Header, ruleFailure); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
 		}
 		return fmt.Errorf("connect to %v blocked by rules", req.DestAddr)
@@ -188,7 +188,7 @@ func (s *Server) handleConnect(ctx context.Context, w io.Writer, req *Request) e
 		} else if strings.Contains(msg, "network is unreachable") {
 			resp = networkUnreachable
 		}
-		if err := sendReply(w, req.Header, resp); err != nil {
+		if err := sendReply(writer, req.Header, resp); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
 		}
 		return fmt.Errorf("connect to %v failed, %v", req.DestAddr, err)
@@ -196,14 +196,14 @@ func (s *Server) handleConnect(ctx context.Context, w io.Writer, req *Request) e
 	defer target.Close()
 
 	// Send success
-	if err := sendReply(w, req.Header, successReply, target.LocalAddr()); err != nil {
+	if err := sendReply(writer, req.Header, successReply, target.LocalAddr()); err != nil {
 		return fmt.Errorf("failed to send reply, %v", err)
 	}
 
 	// Start proxying
 	errCh := make(chan error, 2)
-	go s.proxy(target, req.bufConn, errCh)
-	go s.proxy(w, target, errCh)
+	go func() { errCh <- s.proxy(target, req.bufConn) }()
+	go func() { errCh <- s.proxy(writer, target) }()
 
 	// Wait
 	for i := 0; i < 2; i++ {
@@ -217,10 +217,10 @@ func (s *Server) handleConnect(ctx context.Context, w io.Writer, req *Request) e
 }
 
 // handleBind is used to handle a connect command
-func (s *Server) handleBind(ctx context.Context, conn io.Writer, req *Request) error {
+func (s *Server) handleBind(ctx context.Context, writer io.Writer, req *Request) error {
 	// Check if this is allowed
 	if ctx_, ok := s.config.Rules.Allow(ctx, req); !ok {
-		if err := sendReply(conn, req.Header, ruleFailure); err != nil {
+		if err := sendReply(writer, req.Header, ruleFailure); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
 		}
 		return fmt.Errorf("bind to %v blocked by rules", req.DestAddr)
@@ -229,17 +229,25 @@ func (s *Server) handleBind(ctx context.Context, conn io.Writer, req *Request) e
 	}
 
 	// TODO: Support bind
-	if err := sendReply(conn, req.Header, commandNotSupported); err != nil {
+	if err := sendReply(writer, req.Header, commandNotSupported); err != nil {
 		return fmt.Errorf("failed to send reply: %v", err)
 	}
 	return nil
 }
 
 // handleAssociate is used to handle a connect command
-func (s *Server) handleAssociate(ctx context.Context, conn io.Writer, req *Request) error {
+func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, req *Request) error {
+	/*
+		The SOCKS associate request/response is formed as follows:
+		+-----+------+-------+----------+----------+----------+
+		| RSV | FRAG |  ATYP | DST.ADDR | DST.PORT |   DATA   |
+		+-----+------+-------+----------+----------+----------+
+		|  2  |  1   | X'00' |     1    |     2    | Variable |
+		+-----+------+-------+----------+----------+----------+
+	*/
 	// Check if this is allowed
 	if ctx_, ok := s.config.Rules.Allow(ctx, req); !ok {
-		if err := sendReply(conn, req.Header, ruleFailure); err != nil {
+		if err := sendReply(writer, req.Header, ruleFailure); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
 		}
 		return fmt.Errorf("associate to %v blocked by rules", req.DestAddr)
@@ -247,11 +255,98 @@ func (s *Server) handleAssociate(ctx context.Context, conn io.Writer, req *Reque
 		ctx = ctx_
 	}
 
-	// TODO: Support associate
-	if err := sendReply(conn, req.Header, commandNotSupported); err != nil {
+	// Attempt to connect
+	dial := s.config.Dial
+	if dial == nil {
+		dial = func(ctx context.Context, net_, addr string) (net.Conn, error) {
+			return net.Dial(net_, addr)
+		}
+	}
+	target, err := dial(ctx, "udp", req.realDestAddr.Address())
+	if err != nil {
+		msg := err.Error()
+		resp := hostUnreachable
+		if strings.Contains(msg, "refused") {
+			resp = connectionRefused
+		} else if strings.Contains(msg, "network is unreachable") {
+			resp = networkUnreachable
+		}
+		if err := sendReply(writer, req.Header, resp); err != nil {
+			return fmt.Errorf("failed to send reply, %v", err)
+		}
+		return fmt.Errorf("connect to %v failed, %v", req.DestAddr, err)
+	}
+	defer target.Close()
+
+	targetUdp, ok := target.(*net.UDPConn)
+	if !ok {
+		if err := sendReply(writer, req.Header, serverFailure); err != nil {
+			return fmt.Errorf("failed to send reply, %v", err)
+		}
+		return fmt.Errorf("dial udp invalid")
+	}
+
+	lAddr, _ := net.ResolveUDPAddr("udp", ":0")
+	listen, err := net.ListenUDP("udp", lAddr)
+	if err != nil {
+		if err := sendReply(writer, req.Header, serverFailure); err != nil {
+			return fmt.Errorf("failed to send reply, %v", err)
+		}
+		return fmt.Errorf("listen udp failed, %v", err)
+	}
+
+	// send BND.ADDR and BND.PORT, client must
+	if err = sendReply(writer, req.Header, successReply, listen.LocalAddr()); err != nil {
 		return fmt.Errorf("failed to send reply, %v", err)
 	}
-	return nil
+
+	go func() {
+		// read from client and write to remote server
+		buf := s.bufferPool.Get()
+		defer s.bufferPool.Put(buf)
+		for {
+			n, _, err := listen.ReadFrom(buf[:cap(buf)])
+			if err != nil {
+				s.config.Logger.Errorf("read data from %s failed, %v", listen.LocalAddr(), err)
+				return
+			}
+			if _, err := targetUdp.Write(buf[:n]); err != nil {
+				s.config.Logger.Errorf("write data to remote %s failed, %v", targetUdp.RemoteAddr(), err)
+				return
+			}
+		}
+	}()
+
+	go func() {
+		// read from remote server and write to client
+		buf := s.bufferPool.Get()
+		defer s.bufferPool.Put(buf)
+		for {
+			n, _, err := targetUdp.ReadFromUDP(buf[:cap(buf)])
+			if err != nil {
+				s.config.Logger.Errorf("read data from remote %s failed, %v", targetUdp.RemoteAddr(), err)
+				return
+			}
+			if _, err := listen.Write(buf[:n]); err != nil {
+				s.config.Logger.Errorf("write data to remote %s failed, %v", targetUdp.RemoteAddr(), err)
+				return
+			}
+		}
+	}()
+
+	buf := s.bufferPool.Get()
+	defer s.bufferPool.Put(buf)
+	for {
+		_, err := req.bufConn.Read(buf)
+		if err != nil {
+			return err
+		}
+	}
+	//// TODO: Support associate
+	//if err := sendReply(writer, req.Header, commandNotSupported); err != nil {
+	//	return fmt.Errorf("failed to send reply, %v", err)
+	//}
+	//return nil
 }
 
 // sendReply is used to send a reply message
@@ -306,12 +401,12 @@ type closeWriter interface {
 
 // proxy is used to suffle data from src to destination, and sends errors
 // down a dedicated channel
-func (s *Server) proxy(dst io.Writer, src io.Reader, errCh chan error) {
+func (s *Server) proxy(dst io.Writer, src io.Reader) error {
 	buf := s.bufferPool.Get()
 	defer s.bufferPool.Put(buf)
 	_, err := io.CopyBuffer(dst, src, buf[:cap(buf)])
 	if tcpConn, ok := dst.(closeWriter); ok {
 		tcpConn.CloseWrite()
 	}
-	errCh <- err
+	return err
 }

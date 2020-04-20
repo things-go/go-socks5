@@ -102,8 +102,10 @@ func (h Header) Bytes() (b []byte) {
 		if h.addrType == fqdnAddress {
 			b = append(b, byte(len(h.Address.FQDN)))
 			b = append(b, []byte(h.Address.FQDN)...)
-		} else {
-			b = append(b, h.Address.IP...)
+		} else if h.addrType == ipv4Address {
+			b = append(b, h.Address.IP.To4()...)
+		} else if h.addrType == ipv6Address {
+			b = append(b, h.Address.IP.To16()...)
 		}
 		b = append(b, hiPort, loPort)
 	}
