@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"strings"
+	"sync"
 )
 
 var (
@@ -287,7 +288,7 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, req *Req
 	}
 
 	lAddr, _ := net.ResolveUDPAddr("udp", ":0")
-	listen, err := net.ListenUDP("udp", lAddr)
+	bindLn, err := net.ListenUDP("udp4", lAddr)
 	if err != nil {
 		if err := sendReply(writer, req.Header, serverFailure); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
@@ -295,58 +296,62 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, req *Req
 		return fmt.Errorf("listen udp failed, %v", err)
 	}
 
+	s.config.Logger.Errorf("target addr %v, listen addr: %s", targetUdp.RemoteAddr(), bindLn.LocalAddr())
 	// send BND.ADDR and BND.PORT, client must
-	if err = sendReply(writer, req.Header, successReply, listen.LocalAddr()); err != nil {
+	if err = sendReply(writer, req.Header, successReply, bindLn.LocalAddr()); err != nil {
 		return fmt.Errorf("failed to send reply, %v", err)
 	}
 
 	go func() {
 		// read from client and write to remote server
+		conns := sync.Map{}
 		buf := s.bufferPool.Get()
 		defer s.bufferPool.Put(buf)
 		for {
-			n, _, err := listen.ReadFrom(buf[:cap(buf)])
+			n, srcAddr, err := bindLn.ReadFrom(buf[:cap(buf)])
 			if err != nil {
-				s.config.Logger.Errorf("read data from %s failed, %v", listen.LocalAddr(), err)
+				s.config.Logger.Errorf("read data from bind listen address %s failed, %v", bindLn.LocalAddr(), err)
 				return
 			}
+
+			// 把消息写给remote sever
 			if _, err := targetUdp.Write(buf[:n]); err != nil {
 				s.config.Logger.Errorf("write data to remote %s failed, %v", targetUdp.RemoteAddr(), err)
 				return
 			}
-		}
-	}()
 
-	go func() {
-		// read from remote server and write to client
-		buf := s.bufferPool.Get()
-		defer s.bufferPool.Put(buf)
-		for {
-			n, _, err := targetUdp.ReadFromUDP(buf[:cap(buf)])
-			if err != nil {
-				s.config.Logger.Errorf("read data from remote %s failed, %v", targetUdp.RemoteAddr(), err)
-				return
-			}
-			if _, err := listen.Write(buf[:n]); err != nil {
-				s.config.Logger.Errorf("write data to remote %s failed, %v", targetUdp.RemoteAddr(), err)
-				return
+			if _, ok := conns.LoadOrStore(srcAddr.String(), struct{}{}); !ok {
+				go func() {
+					// read from remote server and write to client
+					buf := s.bufferPool.Get()
+					defer s.bufferPool.Put(buf)
+					for {
+						n, _, err := targetUdp.ReadFrom(buf[:cap(buf)])
+						if err != nil {
+							s.config.Logger.Errorf("read data from remote %s failed, %v", targetUdp.RemoteAddr(), err)
+							return
+						}
+
+						if _, err := bindLn.WriteTo(buf[:n], srcAddr); err != nil {
+							s.config.Logger.Errorf("write data to client %s failed, %v", bindLn.LocalAddr(), err)
+							return
+						}
+					}
+				}()
 			}
 		}
 	}()
 
 	buf := s.bufferPool.Get()
-	defer s.bufferPool.Put(buf)
+	defer func() {
+		s.bufferPool.Put(buf)
+	}()
 	for {
 		_, err := req.bufConn.Read(buf)
 		if err != nil {
 			return err
 		}
 	}
-	//// TODO: Support associate
-	//if err := sendReply(writer, req.Header, commandNotSupported); err != nil {
-	//	return fmt.Errorf("failed to send reply, %v", err)
-	//}
-	//return nil
 }
 
 // sendReply is used to send a reply message
@@ -366,12 +371,18 @@ func sendReply(w io.Writer, head Header, resp uint8, bindAddr ...net.Addr) error
 		head.addrType = ipv4Address
 		head.Address.IP = []byte{0, 0, 0, 0}
 		head.Address.Port = 0
-	} else if tcpAddr, ok := bindAddr[0].(*net.TCPAddr); !ok || tcpAddr == nil {
-		head.addrType = ipv4Address
-		head.Address.IP = []byte{0, 0, 0, 0}
-		head.Address.Port = 0
 	} else {
-		addrSpec := AddrSpec{IP: tcpAddr.IP, Port: tcpAddr.Port}
+		addrSpec := AddrSpec{}
+		if tcpAddr, ok := bindAddr[0].(*net.TCPAddr); ok && tcpAddr != nil {
+			addrSpec.IP = tcpAddr.IP
+			addrSpec.Port = tcpAddr.Port
+		} else if udpAddr, ok := bindAddr[0].(*net.UDPAddr); ok && udpAddr != nil {
+			addrSpec.IP = udpAddr.IP
+			addrSpec.Port = udpAddr.Port
+		} else {
+			addrSpec.IP = []byte{0, 0, 0, 0}
+			addrSpec.Port = 0
+		}
 		switch {
 		case addrSpec.FQDN != "":
 			head.addrType = fqdnAddress
@@ -388,8 +399,8 @@ func sendReply(w io.Writer, head Header, resp uint8, bindAddr ...net.Addr) error
 		default:
 			return fmt.Errorf("failed to format address[%v]", bindAddr)
 		}
-	}
 
+	}
 	// Send the message
 	_, err := w.Write(head.Bytes())
 	return err

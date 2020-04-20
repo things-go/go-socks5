@@ -79,9 +79,15 @@ func New(conf *Config) (*Server, error) {
 		conf.Logger = NewLogger(log.New(ioutil.Discard, "socks5: ", log.LstdFlags))
 	}
 
+	if conf.Dial == nil {
+		conf.Dial = func(ctx context.Context, net_, addr string) (net.Conn, error) {
+			return net.Dial(net_, addr)
+		}
+	}
+
 	server := &Server{
 		config:     conf,
-		bufferPool: newPool(32 * 1024),
+		bufferPool: newPool(2 * 1024),
 	}
 
 	server.authMethods = make(map[uint8]Authenticator)

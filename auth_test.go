@@ -113,7 +113,7 @@ func TestNoSupportedAuth(t *testing.T) {
 	}
 
 	out := resp.Bytes()
-	if !bytes.Equal(out, []byte{socks5Version, noAcceptable}) {
+	if !bytes.Equal(out, []byte{socks5Version, NoAcceptable}) {
 		t.Fatalf("bad: %v", out)
 	}
 }

@@ -2,7 +2,6 @@ package socks5
 
 import (
 	"bytes"
-	"encoding/binary"
 	"io"
 	"log"
 	"net"
@@ -37,10 +36,9 @@ func TestSOCKS5_Connect(t *testing.T) {
 	lAddr := l.Addr().(*net.TCPAddr)
 
 	// Create a socks server
-	creds := StaticCredentials{
-		"foo": "bar",
+	cator := UserPassAuthenticator{
+		Credentials: StaticCredentials{"foo": "bar"},
 	}
-	cator := UserPassAuthenticator{Credentials: creds}
 	conf := &Config{
 		AuthMethods: []Authenticator{cator},
 		Logger:      NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags)),
@@ -65,16 +63,21 @@ func TestSOCKS5_Connect(t *testing.T) {
 	}
 
 	// Connect, auth and connec to local
-	req := bytes.NewBuffer(nil)
-	req.Write([]byte{5})
-	req.Write([]byte{2, NoAuth, UserPassAuth})
-	req.Write([]byte{1, 3, 'f', 'o', 'o', 3, 'b', 'a', 'r'})
-	req.Write([]byte{5, 1, 0, 1, 127, 0, 0, 1})
-
-	port := []byte{0, 0}
-	binary.BigEndian.PutUint16(port, uint16(lAddr.Port))
-	req.Write(port)
-
+	req := new(bytes.Buffer)
+	req.Write([]byte{socks5Version, 2, NoAuth, UserPassAuth})
+	req.Write([]byte{userPassAuthVersion, 3, 'f', 'o', 'o', 3, 'b', 'a', 'r'})
+	reqHead := Header{
+		Version:  socks5Version,
+		Command:  ConnectCommand,
+		Reserved: 0,
+		Address: AddrSpec{
+			"",
+			net.ParseIP("127.0.0.1"),
+			lAddr.Port,
+		},
+		addrType: ipv4Address,
+	}
+	req.Write(reqHead.Bytes())
 	// Send a ping
 	req.Write([]byte("ping"))
 
@@ -83,22 +86,30 @@ func TestSOCKS5_Connect(t *testing.T) {
 
 	// Verify response
 	expected := []byte{
-		socks5Version, UserPassAuth,
-		1, authSuccess,
-		5,
-		0,
-		0,
-		1,
-		127, 0, 0, 1,
-		0, 0,
-		'p', 'o', 'n', 'g',
+		socks5Version, UserPassAuth, // use user password auth
+		userPassAuthVersion, authSuccess, // response auth success
 	}
-	out := make([]byte, len(expected))
+	rspHead := Header{
+		Version:  socks5Version,
+		Command:  successReply,
+		Reserved: 0,
+		Address: AddrSpec{
+			"",
+			net.ParseIP("127.0.0.1"),
+			0, // Ignore the port
+		},
+		addrType: ipv4Address,
+	}
+	expected = append(expected, rspHead.Bytes()...)
+	expected = append(expected, []byte("pong")...)
 
+	out := make([]byte, len(expected))
 	conn.SetDeadline(time.Now().Add(time.Second))
-	if _, err := io.ReadAtLeast(conn, out, len(out)); err != nil {
+	if _, err := io.ReadFull(conn, out); err != nil {
 		t.Fatalf("err: %v", err)
 	}
+
+	t.Logf("proxy bind port: %d", buildPort(out[12], out[13]))
 
 	// Ignore the port
 	out[12] = 0
@@ -107,4 +118,128 @@ func TestSOCKS5_Connect(t *testing.T) {
 	if !bytes.Equal(out, expected) {
 		t.Fatalf("bad: %v", out)
 	}
+}
+
+func TestSOCKS5_Associate(t *testing.T) {
+	locIP := net.ParseIP("127.0.0.1")
+	// Create a local listener
+	lAddr := &net.UDPAddr{
+		IP:   locIP,
+		Port: 12398,
+	}
+	l, err := net.ListenUDP("udp4", lAddr)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	defer l.Close()
+	go func() {
+		buf := make([]byte, 2048)
+		for {
+			n, remote, err := l.ReadFrom(buf)
+			if err != nil {
+				return
+			}
+			if !bytes.Equal(buf[:n], []byte("ping")) {
+				t.Fatalf("bad: %v", buf)
+			}
+			l.WriteTo([]byte("pong"), remote)
+		}
+	}()
+
+	// Create a socks server
+	cator := UserPassAuthenticator{Credentials: StaticCredentials{"foo": "bar"}}
+	conf := &Config{
+		AuthMethods: []Authenticator{cator},
+		Logger:      NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags)),
+	}
+	serv, err := New(conf)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Start listening
+	go func() {
+		if err := serv.ListenAndServe("tcp", "127.0.0.1:12355"); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}()
+	time.Sleep(10 * time.Millisecond)
+
+	// Get a local conn
+	conn, err := net.Dial("tcp", "127.0.0.1:12355")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Connect, auth and connec to local
+	req := new(bytes.Buffer)
+	req.Write([]byte{socks5Version, 2, NoAuth, UserPassAuth})
+	req.Write([]byte{userPassAuthVersion, 3, 'f', 'o', 'o', 3, 'b', 'a', 'r'})
+	reqHead := Header{
+		Version:  socks5Version,
+		Command:  AssociateCommand,
+		Reserved: 0,
+		Address: AddrSpec{
+			"",
+			locIP,
+			lAddr.Port,
+		},
+		addrType: ipv4Address,
+	}
+	req.Write(reqHead.Bytes())
+	// Send all the bytes
+	conn.Write(req.Bytes())
+
+	// Verify response
+	expected := []byte{
+		socks5Version, UserPassAuth, // use user password auth
+		userPassAuthVersion, authSuccess, // response auth success
+	}
+	rspHead := Header{
+		Version:  socks5Version,
+		Command:  successReply,
+		Reserved: 0,
+		Address: AddrSpec{
+			"",
+			net.ParseIP("0.0.0.0"),
+			0, // Ignore the port
+		},
+		addrType: ipv4Address,
+	}
+	expected = append(expected, rspHead.Bytes()...)
+
+	out := make([]byte, len(expected))
+	conn.SetDeadline(time.Now().Add(time.Second))
+	if _, err := io.ReadFull(conn, out); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ignore the port
+	proxyBindPort := buildPort(out[12], out[13])
+
+	out[12] = 0
+	out[13] = 0
+
+	t.Logf("proxy bind listen port: %d", proxyBindPort)
+
+	if !bytes.Equal(out, expected) {
+		t.Fatalf("bad: %v", out)
+	}
+
+	udpConn, err := net.DialUDP("udp4", nil, &net.UDPAddr{
+		IP: locIP,
+		//Port: lAddr.Port,
+		Port: proxyBindPort,
+	})
+	if err != nil {
+		t.Fatalf("bad dial: %v", err)
+	}
+	// Send a ping
+	udpConn.Write([]byte("ping"))
+	response := make([]byte, 1024)
+	n, _, err := udpConn.ReadFrom(response)
+	if !bytes.Equal(response[:n], []byte("pong")) {
+		t.Fatalf("bad udp read: %v", string(response[:n]))
+	}
+	time.Sleep(time.Second * 1)
 }
