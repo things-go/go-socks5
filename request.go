@@ -179,14 +179,6 @@ func (s *Server) handleBind(ctx context.Context, writer io.Writer, req *Request)
 
 // handleAssociate is used to handle a connect command
 func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, req *Request) error {
-	/*
-		The SOCKS associate request/response is formed as follows:
-		+-----+------+-------+----------+----------+----------+
-		| RSV | FRAG |  ATYP | DST.ADDR | DST.PORT |   DATA   |
-		+-----+------+-------+----------+----------+----------+
-		|  2  |  1   | X'00' |     1    |     2    | Variable |
-		+-----+------+-------+----------+----------+----------+
-	*/
 	// Check if this is allowed
 	if ctx_, ok := s.config.Rules.Allow(ctx, req); !ok {
 		if err := sendReply(writer, req.Header, ruleFailure); err != nil {
@@ -235,6 +227,7 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, req *Req
 		}
 		return fmt.Errorf("listen udp failed, %v", err)
 	}
+	defer bindLn.Close()
 
 	s.config.Logger.Errorf("target addr %v, listen addr: %s", targetUdp.RemoteAddr(), bindLn.LocalAddr())
 	// send BND.ADDR and BND.PORT, client must
@@ -243,19 +236,69 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, req *Req
 	}
 
 	s.submit(func() {
+		/*
+			The SOCKS UDP request/response is formed as follows:
+			+-----+------+-------+----------+----------+----------+
+			| RSV | FRAG |  ATYP | DST.ADDR | DST.PORT |   DATA   |
+			+-----+------+-------+----------+----------+----------+
+			|  2  |  1   | X'00' | Variable |     2    | Variable |
+			+-----+------+-------+----------+----------+----------+
+		*/
 		// read from client and write to remote server
 		conns := sync.Map{}
-		buf := s.bufferPool.Get()
-		defer s.bufferPool.Put(buf)
+		bufPool := s.bufferPool.Get()
+		defer func() {
+			targetUdp.Close()
+			bindLn.Close()
+			s.bufferPool.Put(bufPool)
+		}()
 		for {
-			n, srcAddr, err := bindLn.ReadFrom(buf[:cap(buf)])
+			buf := bufPool[:cap(bufPool)]
+			n, srcAddr, err := bindLn.ReadFrom(buf)
 			if err != nil {
 				s.config.Logger.Errorf("read data from bind listen address %s failed, %v", bindLn.LocalAddr(), err)
 				return
 			}
+			s.config.Logger.Errorf("data length: %d,%d", n, len(buf))
+			if n <= 4+net.IPv4len+2 { // no data
+				continue
+			}
+			// ignore RSV,FRAG
+			addrType := buf[3]
+			addrLen := 0
+			headLen := 0
+			var addrSpc AddrSpec
+			if addrType == ipv4Address {
+				headLen = 4 + net.IPv4len + 2
+				addrLen = net.IPv4len
+				addrSpc.IP = make(net.IP, net.IPv4len)
+				copy(addrSpc.IP, buf[4:4+net.IPv4len])
+				addrSpc.Port = buildPort(buf[4+net.IPv4len], buf[4+net.IPv4len+1])
+			} else if addrType == ipv6Address {
+				headLen = 4 + net.IPv6len + 2
+				if n <= headLen {
+					continue
+				}
+				addrLen = net.IPv6len
+				addrSpc.IP = make(net.IP, net.IPv6len)
+				copy(addrSpc.IP, buf[4:4+net.IPv6len])
+				addrSpc.Port = buildPort(buf[4+net.IPv6len], buf[4+net.IPv6len+1])
+			} else if addrType == fqdnAddress {
+				addrLen = int(buf[4])
+				headLen = 4 + 1 + addrLen + 2
+				if n <= headLen {
+					continue
+				}
+				str := make([]byte, addrLen)
+				copy(str, buf[5:5+addrLen])
+				addrSpc.FQDN = string(str)
+				addrSpc.Port = buildPort(buf[5+addrLen], buf[5+addrLen+1])
+			} else {
+				continue
+			}
 
 			// 把消息写给remote sever
-			if _, err := targetUdp.Write(buf[:n]); err != nil {
+			if _, err := targetUdp.Write(buf[headLen:n]); err != nil {
 				s.config.Logger.Errorf("write data to remote %s failed, %v", targetUdp.RemoteAddr(), err)
 				return
 			}
@@ -263,19 +306,43 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, req *Req
 			if _, ok := conns.LoadOrStore(srcAddr.String(), struct{}{}); !ok {
 				s.submit(func() {
 					// read from remote server and write to client
-					buf := s.bufferPool.Get()
-					defer s.bufferPool.Put(buf)
+					bufPool := s.bufferPool.Get()
+					defer func() {
+						targetUdp.Close()
+						bindLn.Close()
+						s.bufferPool.Put(bufPool)
+					}()
+
 					for {
-						n, _, err := targetUdp.ReadFrom(buf[:cap(buf)])
+						buf := bufPool[:cap(bufPool)]
+						n, remote, err := targetUdp.ReadFrom(buf)
 						if err != nil {
 							s.config.Logger.Errorf("read data from remote %s failed, %v", targetUdp.RemoteAddr(), err)
 							return
 						}
 
-						if _, err := bindLn.WriteTo(buf[:n], srcAddr); err != nil {
+						tmpBufPool := s.bufferPool.Get()
+						proBuf := tmpBufPool
+						rAddr, _ := net.ResolveUDPAddr("udp", remote.String())
+						hi, lo := breakPort(rAddr.Port)
+						if rAddr.IP.To4() != nil {
+							proBuf = append(proBuf, []byte{0, 0, 0, ipv4Address}...)
+							proBuf = append(proBuf, rAddr.IP.To4()...)
+							proBuf = append(proBuf, hi, lo)
+						} else if rAddr.IP.To16() != nil {
+							proBuf = append(proBuf, []byte{0, 0, 0, ipv6Address}...)
+							proBuf = append(proBuf, rAddr.IP.To16()...)
+							proBuf = append(proBuf, hi, lo)
+						} else { // should never happen
+							continue
+						}
+						proBuf = append(proBuf, buf[:n]...)
+						if _, err := bindLn.WriteTo(proBuf, srcAddr); err != nil {
+							s.bufferPool.Put(tmpBufPool)
 							s.config.Logger.Errorf("write data to client %s failed, %v", bindLn.LocalAddr(), err)
 							return
 						}
+						s.bufferPool.Put(tmpBufPool)
 					}
 				})
 			}
@@ -287,7 +354,7 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, req *Req
 		s.bufferPool.Put(buf)
 	}()
 	for {
-		_, err := req.bufConn.Read(buf)
+		_, err := req.bufConn.Read(buf[:cap(buf)])
 		if err != nil {
 			return err
 		}

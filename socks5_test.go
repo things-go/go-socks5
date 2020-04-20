@@ -226,10 +226,10 @@ func TestSOCKS5_Associate(t *testing.T) {
 		t.Fatalf("bad dial: %v", err)
 	}
 	// Send a ping
-	udpConn.Write([]byte("ping"))
+	udpConn.Write(append([]byte{0, 0, 0, ipv4Address, 0, 0, 0, 0, 0, 0}, []byte("ping")...))
 	response := make([]byte, 1024)
 	n, _, err := udpConn.ReadFrom(response)
-	if !bytes.Equal(response[:n], []byte("pong")) {
+	if !bytes.Equal(response[n-4:n], []byte("pong")) {
 		t.Fatalf("bad udp read: %v", string(response[:n]))
 	}
 	time.Sleep(time.Second * 1)

@@ -18,6 +18,7 @@ The package has the following features:
 * "No Auth" mode
 * User/Password authentication
 * Support for the CONNECT command
+* Support for the ASSOCIATE command
 * Rules to do granular filtering of commands
 * Custom DNS resolution
 * Unit tests
@@ -27,8 +28,6 @@ TODO
 
 The package still needs the following:
 * Support for the BIND command
-* Support for the ASSOCIATE command
-
 
 Example
 =======
