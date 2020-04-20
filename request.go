@@ -129,7 +129,7 @@ func (s *Server) handleRequest(write io.Writer, req *Request) error {
 	if dest.FQDN != "" {
 		ctx_, addr, err := s.config.Resolver.Resolve(ctx, dest.FQDN)
 		if err != nil {
-			if err := sendReply(write, hostUnreachable); err != nil {
+			if err := sendReply(write, req.Header, hostUnreachable); err != nil {
 				return fmt.Errorf("failed to send reply, %v", err)
 			}
 			return fmt.Errorf("failed to resolve destination[%v], %v", dest.FQDN, err)
@@ -153,7 +153,7 @@ func (s *Server) handleRequest(write io.Writer, req *Request) error {
 	case AssociateCommand:
 		return s.handleAssociate(ctx, write, req)
 	default:
-		if err := sendReply(write, commandNotSupported); err != nil {
+		if err := sendReply(write, req.Header, commandNotSupported); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
 		}
 		return fmt.Errorf("unsupported command[%v]", req.Command)
@@ -164,7 +164,7 @@ func (s *Server) handleRequest(write io.Writer, req *Request) error {
 func (s *Server) handleConnect(ctx context.Context, w io.Writer, req *Request) error {
 	// Check if this is allowed
 	if ctx_, ok := s.config.Rules.Allow(ctx, req); !ok {
-		if err := sendReply(w, ruleFailure); err != nil {
+		if err := sendReply(w, req.Header, ruleFailure); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
 		}
 		return fmt.Errorf("connect to %v blocked by rules", req.DestAddr)
@@ -188,7 +188,7 @@ func (s *Server) handleConnect(ctx context.Context, w io.Writer, req *Request) e
 		} else if strings.Contains(msg, "network is unreachable") {
 			resp = networkUnreachable
 		}
-		if err := sendReply(w, resp); err != nil {
+		if err := sendReply(w, req.Header, resp); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
 		}
 		return fmt.Errorf("connect to %v failed, %v", req.DestAddr, err)
@@ -196,14 +196,14 @@ func (s *Server) handleConnect(ctx context.Context, w io.Writer, req *Request) e
 	defer target.Close()
 
 	// Send success
-	if err := sendReply(w, successReply, target.LocalAddr()); err != nil {
+	if err := sendReply(w, req.Header, successReply, target.LocalAddr()); err != nil {
 		return fmt.Errorf("failed to send reply, %v", err)
 	}
 
 	// Start proxying
 	errCh := make(chan error, 2)
-	go proxy(target, req.bufConn, errCh)
-	go proxy(w, target, errCh)
+	go s.proxy(target, req.bufConn, errCh)
+	go s.proxy(w, target, errCh)
 
 	// Wait
 	for i := 0; i < 2; i++ {
@@ -220,7 +220,7 @@ func (s *Server) handleConnect(ctx context.Context, w io.Writer, req *Request) e
 func (s *Server) handleBind(ctx context.Context, conn io.Writer, req *Request) error {
 	// Check if this is allowed
 	if ctx_, ok := s.config.Rules.Allow(ctx, req); !ok {
-		if err := sendReply(conn, ruleFailure); err != nil {
+		if err := sendReply(conn, req.Header, ruleFailure); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
 		}
 		return fmt.Errorf("bind to %v blocked by rules", req.DestAddr)
@@ -229,7 +229,7 @@ func (s *Server) handleBind(ctx context.Context, conn io.Writer, req *Request) e
 	}
 
 	// TODO: Support bind
-	if err := sendReply(conn, commandNotSupported); err != nil {
+	if err := sendReply(conn, req.Header, commandNotSupported); err != nil {
 		return fmt.Errorf("failed to send reply: %v", err)
 	}
 	return nil
@@ -239,7 +239,7 @@ func (s *Server) handleBind(ctx context.Context, conn io.Writer, req *Request) e
 func (s *Server) handleAssociate(ctx context.Context, conn io.Writer, req *Request) error {
 	// Check if this is allowed
 	if ctx_, ok := s.config.Rules.Allow(ctx, req); !ok {
-		if err := sendReply(conn, ruleFailure); err != nil {
+		if err := sendReply(conn, req.Header, ruleFailure); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
 		}
 		return fmt.Errorf("associate to %v blocked by rules", req.DestAddr)
@@ -248,14 +248,14 @@ func (s *Server) handleAssociate(ctx context.Context, conn io.Writer, req *Reque
 	}
 
 	// TODO: Support associate
-	if err := sendReply(conn, commandNotSupported); err != nil {
+	if err := sendReply(conn, req.Header, commandNotSupported); err != nil {
 		return fmt.Errorf("failed to send reply, %v", err)
 	}
 	return nil
 }
 
 // sendReply is used to send a reply message
-func sendReply(w io.Writer, resp uint8, bindAddr ...net.Addr) error {
+func sendReply(w io.Writer, head Header, resp uint8, bindAddr ...net.Addr) error {
 	/*
 		The SOCKS response is formed as follows:
 		+----+-----+-------+------+----------+----------+
@@ -265,11 +265,7 @@ func sendReply(w io.Writer, resp uint8, bindAddr ...net.Addr) error {
 		+----+-----+-------+------+----------+----------+
 	*/
 
-	head := Header{
-		Version:  socks5Version,
-		Command:  resp,
-		Reserved: 0,
-	}
+	head.Command = resp
 
 	if len(bindAddr) == 0 {
 		head.addrType = ipv4Address
@@ -310,8 +306,10 @@ type closeWriter interface {
 
 // proxy is used to suffle data from src to destination, and sends errors
 // down a dedicated channel
-func proxy(dst io.Writer, src io.Reader, errCh chan error) {
-	_, err := io.Copy(dst, src)
+func (s *Server) proxy(dst io.Writer, src io.Reader, errCh chan error) {
+	buf := s.bufferPool.Get()
+	defer s.bufferPool.Put(buf)
+	_, err := io.CopyBuffer(dst, src, buf[:cap(buf)])
 	if tcpConn, ok := dst.(closeWriter); ok {
 		tcpConn.CloseWrite()
 	}

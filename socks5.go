@@ -50,6 +50,7 @@ type Config struct {
 type Server struct {
 	config      *Config
 	authMethods map[uint8]Authenticator
+	bufferPool  *pool
 }
 
 // New creates a new Server and potentially returns an error
@@ -79,7 +80,8 @@ func New(conf *Config) (*Server, error) {
 	}
 
 	server := &Server{
-		config: conf,
+		config:     conf,
+		bufferPool: newPool(32 * 1024),
 	}
 
 	server.authMethods = make(map[uint8]Authenticator)
@@ -142,7 +144,7 @@ func (s *Server) ServeConn(conn net.Conn) (err error) {
 	request, err := NewRequest(bufConn)
 	if err != nil {
 		if err == unrecognizedAddrType {
-			if err := sendReply(conn, addrTypeNotSupported); err != nil {
+			if err := sendReply(conn, Header{Version: version[0]}, addrTypeNotSupported); err != nil {
 				return fmt.Errorf("failed to send reply, %v", err)
 			}
 		}
