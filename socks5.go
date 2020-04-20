@@ -9,6 +9,11 @@ import (
 	"net"
 )
 
+// GPool is used to implement custom goroutine pool default use goroutine
+type GPool interface {
+	Submit(f func()) error
+}
+
 // Config is used to setup and configure a Server
 type Config struct {
 	// AuthMethods can be provided to implement custom authentication
@@ -51,6 +56,7 @@ type Server struct {
 	config      *Config
 	authMethods map[uint8]Authenticator
 	bufferPool  *pool
+	gPool       GPool
 }
 
 // New creates a new Server and potentially returns an error
@@ -115,7 +121,9 @@ func (s *Server) Serve(l net.Listener) error {
 		if err != nil {
 			return err
 		}
-		go s.ServeConn(conn)
+		s.submit(func() {
+			s.ServeConn(conn)
+		})
 	}
 }
 
@@ -170,4 +178,10 @@ func (s *Server) ServeConn(conn net.Conn) (err error) {
 	}
 
 	return nil
+}
+
+func (s *Server) submit(f func()) {
+	if s.gPool == nil || s.gPool.Submit(f) != nil {
+		go f()
+	}
 }
