@@ -127,7 +127,7 @@ func TestSOCKS5_Associate(t *testing.T) {
 		IP:   locIP,
 		Port: 12398,
 	}
-	l, err := net.ListenUDP("udp4", lAddr)
+	l, err := net.ListenUDP("udp", lAddr)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -195,18 +195,6 @@ func TestSOCKS5_Associate(t *testing.T) {
 		socks5Version, UserPassAuth, // use user password auth
 		userPassAuthVersion, authSuccess, // response auth success
 	}
-	rspHead := Header{
-		Version:  socks5Version,
-		Command:  successReply,
-		Reserved: 0,
-		Address: AddrSpec{
-			"",
-			net.ParseIP("0.0.0.0"),
-			0, // Ignore the port
-		},
-		addrType: ipv4Address,
-	}
-	expected = append(expected, rspHead.Bytes()...)
 
 	out := make([]byte, len(expected))
 	conn.SetDeadline(time.Now().Add(time.Second))
@@ -214,22 +202,23 @@ func TestSOCKS5_Associate(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// Ignore the port
-	proxyBindPort := buildPort(out[12], out[13])
-
-	out[12] = 0
-	out[13] = 0
-
-	t.Logf("proxy bind listen port: %d", proxyBindPort)
-
 	if !bytes.Equal(out, expected) {
 		t.Fatalf("bad: %v", out)
 	}
 
-	udpConn, err := net.DialUDP("udp4", nil, &net.UDPAddr{
-		IP: locIP,
-		//Port: lAddr.Port,
-		Port: proxyBindPort,
+	rspHead, err := Parse(conn)
+	if err != nil {
+		t.Fatalf("bad response header: %v", err)
+	}
+	if rspHead.Version != socks5Version && rspHead.Command != successReply {
+		t.Fatalf("parse success but bad header: %v", rspHead)
+	}
+
+	t.Logf("proxy bind listen port: %d", rspHead.Address.Port)
+
+	udpConn, err := net.DialUDP("udp", nil, &net.UDPAddr{
+		IP:   locIP,
+		Port: rspHead.Address.Port,
 	})
 	if err != nil {
 		t.Fatalf("bad dial: %v", err)

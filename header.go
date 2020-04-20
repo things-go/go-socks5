@@ -102,9 +102,7 @@ func Parse(r io.Reader) (hd Header, err error) {
 	if hd.Version != socks5Version && hd.Version != socks4Version {
 		return hd, fmt.Errorf("unrecognized SOCKS version[%d]", hd.Version)
 	}
-	if hd.Command != ConnectCommand && hd.Command != BindCommand && hd.Command != AssociateCommand {
-		return hd, fmt.Errorf("unrecognized command[%d]", hd.Command)
-	}
+
 	if hd.Version == socks4Version && hd.Command == AssociateCommand {
 		return hd, fmt.Errorf("wrong version for command")
 	}

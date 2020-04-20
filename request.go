@@ -51,6 +51,9 @@ func NewRequest(bufConn io.Reader) (*Request, error) {
 	if err != nil {
 		return nil, err
 	}
+	if hd.Command != ConnectCommand && hd.Command != BindCommand && hd.Command != AssociateCommand {
+		return nil, fmt.Errorf("unrecognized command[%d]", hd.Command)
+	}
 	return &Request{
 		Header:   hd,
 		DestAddr: &hd.Address,
@@ -225,8 +228,7 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, req *Req
 		return fmt.Errorf("dial udp invalid")
 	}
 
-	lAddr, _ := net.ResolveUDPAddr("udp", ":0")
-	bindLn, err := net.ListenUDP("udp4", lAddr)
+	bindLn, err := net.ListenUDP("udp", nil)
 	if err != nil {
 		if err := sendReply(writer, req.Header, serverFailure); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
