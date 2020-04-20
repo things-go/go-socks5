@@ -8,6 +8,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"golang.org/x/net/proxy"
 )
 
 func TestSOCKS5_Connect(t *testing.T) {
@@ -231,4 +233,73 @@ func TestSOCKS5_Associate(t *testing.T) {
 		t.Fatalf("bad udp read: %v", string(response[:n]))
 	}
 	time.Sleep(time.Second * 1)
+}
+
+func Test_SocksWithProxy(t *testing.T) {
+	// Create a local listener
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	go func() {
+		conn, err := l.Accept()
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		defer conn.Close()
+
+		buf := make([]byte, 4)
+		if _, err := io.ReadAtLeast(conn, buf, 4); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		if !bytes.Equal(buf, []byte("ping")) {
+			t.Fatalf("bad: %v", buf)
+		}
+		conn.Write([]byte("pong"))
+	}()
+	lAddr := l.Addr().(*net.TCPAddr)
+
+	// Create a socks server
+	cator := UserPassAuthenticator{Credentials: StaticCredentials{"foo": "bar"}}
+	conf := &Config{
+		AuthMethods: []Authenticator{cator},
+		Logger:      NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags)),
+	}
+	serv, err := New(conf)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Start listening
+	go func() {
+		if err := serv.ListenAndServe("tcp", "127.0.0.1:12395"); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}()
+	time.Sleep(10 * time.Millisecond)
+
+	dial, err := proxy.SOCKS5("tcp", "127.0.0.1:12395", &proxy.Auth{"foo", "bar"}, proxy.Direct)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Connect, auth and connect to local
+	conn, err := dial.Dial("tcp", lAddr.String())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Send a ping
+	conn.Write([]byte("ping"))
+
+	out := make([]byte, 4)
+	conn.SetDeadline(time.Now().Add(time.Second))
+	if _, err := io.ReadFull(conn, out); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !bytes.Equal(out, []byte("pong")) {
+		t.Fatalf("bad: %v", out)
+	}
 }
