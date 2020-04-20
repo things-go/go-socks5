@@ -49,11 +49,14 @@ func TestRequest_Connect(t *testing.T) {
 	lAddr := l.Addr().(*net.TCPAddr)
 
 	// Make server
-	s := &Server{config: &Config{
-		Rules:    PermitAll(),
-		Resolver: DNSResolver{},
-		Logger:   NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags)),
-	}}
+	s := &Server{
+		config: &Config{
+			Rules:    PermitAll(),
+			Resolver: DNSResolver{},
+			Logger:   NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags)),
+		},
+		bufferPool: newPool(32 * 1024),
+	}
 
 	// Create the connect request
 	buf := bytes.NewBuffer(nil)
@@ -124,11 +127,14 @@ func TestRequest_Connect_RuleFail(t *testing.T) {
 	lAddr := l.Addr().(*net.TCPAddr)
 
 	// Make server
-	s := &Server{config: &Config{
-		Rules:    PermitNone(),
-		Resolver: DNSResolver{},
-		Logger:   NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags)),
-	}}
+	s := &Server{
+		config: &Config{
+			Rules:    PermitNone(),
+			Resolver: DNSResolver{},
+			Logger:   NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags)),
+		},
+		bufferPool: newPool(32 * 1024),
+	}
 
 	// Create the connect request
 	buf := bytes.NewBuffer(nil)
