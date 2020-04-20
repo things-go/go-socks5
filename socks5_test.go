@@ -41,14 +41,10 @@ func TestSOCKS5_Connect(t *testing.T) {
 	cator := UserPassAuthenticator{
 		Credentials: StaticCredentials{"foo": "bar"},
 	}
-	conf := &Config{
-		AuthMethods: []Authenticator{cator},
-		Logger:      NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags)),
-	}
-	serv, err := New(conf)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	serv := New(
+		WithAuthMethods([]Authenticator{cator}),
+		WithLogger(NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags))),
+	)
 
 	// Start listening
 	go func() {
@@ -150,15 +146,10 @@ func TestSOCKS5_Associate(t *testing.T) {
 
 	// Create a socks server
 	cator := UserPassAuthenticator{Credentials: StaticCredentials{"foo": "bar"}}
-	conf := &Config{
-		AuthMethods: []Authenticator{cator},
-		Logger:      NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags)),
-	}
-	serv, err := New(conf)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
+	serv := New(
+		WithAuthMethods([]Authenticator{cator}),
+		WithLogger(NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags))),
+	)
 	// Start listening
 	go func() {
 		if err := serv.ListenAndServe("tcp", "127.0.0.1:12355"); err != nil {
@@ -262,14 +253,10 @@ func Test_SocksWithProxy(t *testing.T) {
 
 	// Create a socks server
 	cator := UserPassAuthenticator{Credentials: StaticCredentials{"foo": "bar"}}
-	conf := &Config{
-		AuthMethods: []Authenticator{cator},
-		Logger:      NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags)),
-	}
-	serv, err := New(conf)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	serv := New(
+		WithAuthMethods([]Authenticator{cator}),
+		WithLogger(NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags))),
+	)
 
 	// Start listening
 	go func() {

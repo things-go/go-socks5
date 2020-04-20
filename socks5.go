@@ -14,95 +14,69 @@ type GPool interface {
 	Submit(f func()) error
 }
 
-// Config is used to setup and configure a Server
-type Config struct {
-	// AuthMethods can be provided to implement custom authentication
-	// By default, "auth-less" mode is enabled.
-	// For password-based auth use UserPassAuthenticator.
-	AuthMethods []Authenticator
-
-	// If provided, username/password authentication is enabled,
-	// by appending a UserPassAuthenticator to AuthMethods. If not provided,
-	// and AUthMethods is nil, then "auth-less" mode is enabled.
-	Credentials CredentialStore
-
-	// Resolver can be provided to do custom name resolution.
-	// Defaults to DNSResolver if not provided.
-	Resolver NameResolver
-
-	// Rules is provided to enable custom logic around permitting
-	// various commands. If not provided, PermitAll is used.
-	Rules RuleSet
-
-	// Rewriter can be used to transparently rewrite addresses.
-	// This is invoked before the RuleSet is invoked.
-	// Defaults to NoRewrite.
-	Rewriter AddressRewriter
-
-	// BindIP is used for bind or udp associate
-	BindIP net.IP
-
-	// Logger can be used to provide a custom log target.
-	// Defaults to ioutil.Discard.
-	Logger Logger
-
-	// Optional function for dialing out
-	Dial func(ctx context.Context, network, addr string) (net.Conn, error)
-}
-
 // Server is reponsible for accepting connections and handling
 // the details of the SOCKS5 protocol
 type Server struct {
-	config      *Config
 	authMethods map[uint8]Authenticator
-	bufferPool  *pool
-	gPool       GPool
+	// AuthMethods can be provided to implement custom authentication
+	// By default, "auth-less" mode is enabled.
+	// For password-based auth use UserPassAuthenticator.
+	authCustomMethods []Authenticator
+	// If provided, username/password authentication is enabled,
+	// by appending a UserPassAuthenticator to AuthMethods. If not provided,
+	// and AUthMethods is nil, then "auth-less" mode is enabled.
+	credentials CredentialStore
+	// resolver can be provided to do custom name resolution.
+	// Defaults to DNSResolver if not provided.
+	resolver NameResolver
+	// rules is provided to enable custom logic around permitting
+	// various commands. If not provided, PermitAll is used.
+	rules RuleSet
+	// rewriter can be used to transparently rewrite addresses.
+	// This is invoked before the RuleSet is invoked.
+	// Defaults to NoRewrite.
+	rewriter AddressRewriter
+	// bindIP is used for bind or udp associate
+	bindIP net.IP
+	// logger can be used to provide a custom log target.
+	// Defaults to ioutil.Discard.
+	logger Logger
+	// Optional function for dialing out
+	dial func(ctx context.Context, network, addr string) (net.Conn, error)
+	// buffer pool
+	bufferPool *pool
+	// goroutine pool
+	gPool GPool
 }
 
 // New creates a new Server and potentially returns an error
-func New(conf *Config) (*Server, error) {
-	// Ensure we have at least one authentication method enabled
-	if len(conf.AuthMethods) == 0 {
-		if conf.Credentials != nil {
-			conf.AuthMethods = []Authenticator{&UserPassAuthenticator{conf.Credentials}}
-		} else {
-			conf.AuthMethods = []Authenticator{&NoAuthAuthenticator{}}
-		}
-	}
-
-	// Ensure we have a DNS resolver
-	if conf.Resolver == nil {
-		conf.Resolver = DNSResolver{}
-	}
-
-	// Ensure we have a rule set
-	if conf.Rules == nil {
-		conf.Rules = PermitAll()
-	}
-
-	// Ensure we have a log target
-	if conf.Logger == nil {
-		conf.Logger = NewLogger(log.New(ioutil.Discard, "socks5: ", log.LstdFlags))
-	}
-
-	if conf.Dial == nil {
-		conf.Dial = func(ctx context.Context, net_, addr string) (net.Conn, error) {
-			return net.Dial(net_, addr)
-		}
-	}
-
+func New(opts ...Option) *Server {
 	server := &Server{
-		config:     conf,
-		bufferPool: newPool(2 * 1024),
+		authMethods:       make(map[uint8]Authenticator),
+		authCustomMethods: []Authenticator{&NoAuthAuthenticator{}},
+		bufferPool:        newPool(2 * 1024),
+		resolver:          DNSResolver{},
+		rules:             PermitAll(),
+		logger:            NewLogger(log.New(ioutil.Discard, "socks5: ", log.LstdFlags)),
+		dial: func(ctx context.Context, net_, addr string) (net.Conn, error) {
+			return net.Dial(net_, addr)
+		},
 	}
 
-	server.authMethods = make(map[uint8]Authenticator)
-
-	for _, a := range conf.AuthMethods {
-		server.authMethods[a.GetCode()] = a
+	for _, opt := range opts {
+		opt(server)
 	}
 
-	return server, nil
+	// Ensure we have at least one authentication method enabled
+	if len(server.authCustomMethods) == 0 && server.credentials != nil {
+		server.authCustomMethods = []Authenticator{&UserPassAuthenticator{server.credentials}}
+	}
+
+	for _, v := range server.authCustomMethods {
+		server.authMethods[v.GetCode()] = v
+	}
+
+	return server
 }
 
 // ListenAndServe is used to create a listener and serve on it
@@ -135,7 +109,7 @@ func (s *Server) ServeConn(conn net.Conn) (err error) {
 	// Read the version byte
 	version := []byte{0}
 	if _, err = bufConn.Read(version); err != nil {
-		s.config.Logger.Errorf("failed to get version byte: %v", err)
+		s.logger.Errorf("failed to get version byte: %v", err)
 		return err
 	}
 
@@ -146,12 +120,12 @@ func (s *Server) ServeConn(conn net.Conn) (err error) {
 		authContext, err = s.authenticate(conn, bufConn)
 		if err != nil {
 			err = fmt.Errorf("failed to authenticate: %v", err)
-			s.config.Logger.Errorf("%v", err)
+			s.logger.Errorf("%v", err)
 			return err
 		}
 	} else if version[0] != socks4Version {
 		err := fmt.Errorf("unsupported SOCKS version: %v", version[0])
-		s.config.Logger.Errorf("%v", err)
+		s.logger.Errorf("%v", err)
 		return err
 	}
 
@@ -173,7 +147,7 @@ func (s *Server) ServeConn(conn net.Conn) (err error) {
 	// Process the client request
 	if err := s.handleRequest(conn, request); err != nil {
 		err = fmt.Errorf("failed to handle request, %v", err)
-		s.config.Logger.Errorf("%v", err)
+		s.logger.Errorf("%v", err)
 		return err
 	}
 

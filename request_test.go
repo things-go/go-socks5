@@ -50,11 +50,9 @@ func TestRequest_Connect(t *testing.T) {
 
 	// Make server
 	s := &Server{
-		config: &Config{
-			Rules:    PermitAll(),
-			Resolver: DNSResolver{},
-			Logger:   NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags)),
-		},
+		rules:      PermitAll(),
+		resolver:   DNSResolver{},
+		logger:     NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags)),
 		bufferPool: newPool(32 * 1024),
 	}
 
@@ -128,11 +126,9 @@ func TestRequest_Connect_RuleFail(t *testing.T) {
 
 	// Make server
 	s := &Server{
-		config: &Config{
-			Rules:    PermitNone(),
-			Resolver: DNSResolver{},
-			Logger:   NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags)),
-		},
+		rules:      PermitNone(),
+		resolver:   DNSResolver{},
+		logger:     NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags)),
 		bufferPool: newPool(32 * 1024),
 	}
 

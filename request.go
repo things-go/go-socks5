@@ -68,7 +68,7 @@ func (s *Server) handleRequest(write io.Writer, req *Request) error {
 	// Resolve the address if we have a FQDN
 	dest := req.DestAddr
 	if dest.FQDN != "" {
-		ctx_, addr, err := s.config.Resolver.Resolve(ctx, dest.FQDN)
+		ctx_, addr, err := s.resolver.Resolve(ctx, dest.FQDN)
 		if err != nil {
 			if err := sendReply(write, req.Header, hostUnreachable); err != nil {
 				return fmt.Errorf("failed to send reply, %v", err)
@@ -81,8 +81,8 @@ func (s *Server) handleRequest(write io.Writer, req *Request) error {
 
 	// Apply any address rewrites
 	req.realDestAddr = req.DestAddr
-	if s.config.Rewriter != nil {
-		ctx, req.realDestAddr = s.config.Rewriter.Rewrite(ctx, req)
+	if s.rewriter != nil {
+		ctx, req.realDestAddr = s.rewriter.Rewrite(ctx, req)
 	}
 
 	// Switch on the command
@@ -104,7 +104,7 @@ func (s *Server) handleRequest(write io.Writer, req *Request) error {
 // handleConnect is used to handle a connect command
 func (s *Server) handleConnect(ctx context.Context, writer io.Writer, req *Request) error {
 	// Check if this is allowed
-	if ctx_, ok := s.config.Rules.Allow(ctx, req); !ok {
+	if ctx_, ok := s.rules.Allow(ctx, req); !ok {
 		if err := sendReply(writer, req.Header, ruleFailure); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
 		}
@@ -114,7 +114,7 @@ func (s *Server) handleConnect(ctx context.Context, writer io.Writer, req *Reque
 	}
 
 	// Attempt to connect
-	dial := s.config.Dial
+	dial := s.dial
 	if dial == nil {
 		dial = func(ctx context.Context, net_, addr string) (net.Conn, error) {
 			return net.Dial(net_, addr)
@@ -161,7 +161,7 @@ func (s *Server) handleConnect(ctx context.Context, writer io.Writer, req *Reque
 // handleBind is used to handle a connect command
 func (s *Server) handleBind(ctx context.Context, writer io.Writer, req *Request) error {
 	// Check if this is allowed
-	if ctx_, ok := s.config.Rules.Allow(ctx, req); !ok {
+	if ctx_, ok := s.rules.Allow(ctx, req); !ok {
 		if err := sendReply(writer, req.Header, ruleFailure); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
 		}
@@ -180,7 +180,7 @@ func (s *Server) handleBind(ctx context.Context, writer io.Writer, req *Request)
 // handleAssociate is used to handle a connect command
 func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, req *Request) error {
 	// Check if this is allowed
-	if ctx_, ok := s.config.Rules.Allow(ctx, req); !ok {
+	if ctx_, ok := s.rules.Allow(ctx, req); !ok {
 		if err := sendReply(writer, req.Header, ruleFailure); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
 		}
@@ -190,7 +190,7 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, req *Req
 	}
 
 	// Attempt to connect
-	dial := s.config.Dial
+	dial := s.dial
 	if dial == nil {
 		dial = func(ctx context.Context, net_, addr string) (net.Conn, error) {
 			return net.Dial(net_, addr)
@@ -229,7 +229,7 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, req *Req
 	}
 	defer bindLn.Close()
 
-	s.config.Logger.Errorf("target addr %v, listen addr: %s", targetUdp.RemoteAddr(), bindLn.LocalAddr())
+	s.logger.Errorf("target addr %v, listen addr: %s", targetUdp.RemoteAddr(), bindLn.LocalAddr())
 	// send BND.ADDR and BND.PORT, client must
 	if err = sendReply(writer, req.Header, successReply, bindLn.LocalAddr()); err != nil {
 		return fmt.Errorf("failed to send reply, %v", err)
@@ -256,10 +256,10 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, req *Req
 			buf := bufPool[:cap(bufPool)]
 			n, srcAddr, err := bindLn.ReadFrom(buf)
 			if err != nil {
-				s.config.Logger.Errorf("read data from bind listen address %s failed, %v", bindLn.LocalAddr(), err)
+				s.logger.Errorf("read data from bind listen address %s failed, %v", bindLn.LocalAddr(), err)
 				return
 			}
-			s.config.Logger.Errorf("data length: %d,%d", n, len(buf))
+
 			if n <= 4+net.IPv4len+2 { // no data
 				continue
 			}
@@ -299,7 +299,7 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, req *Req
 
 			// 把消息写给remote sever
 			if _, err := targetUdp.Write(buf[headLen:n]); err != nil {
-				s.config.Logger.Errorf("write data to remote %s failed, %v", targetUdp.RemoteAddr(), err)
+				s.logger.Errorf("write data to remote %s failed, %v", targetUdp.RemoteAddr(), err)
 				return
 			}
 
@@ -317,7 +317,7 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, req *Req
 						buf := bufPool[:cap(bufPool)]
 						n, remote, err := targetUdp.ReadFrom(buf)
 						if err != nil {
-							s.config.Logger.Errorf("read data from remote %s failed, %v", targetUdp.RemoteAddr(), err)
+							s.logger.Errorf("read data from remote %s failed, %v", targetUdp.RemoteAddr(), err)
 							return
 						}
 
@@ -339,7 +339,7 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, req *Req
 						proBuf = append(proBuf, buf[:n]...)
 						if _, err := bindLn.WriteTo(proBuf, srcAddr); err != nil {
 							s.bufferPool.Put(tmpBufPool)
-							s.config.Logger.Errorf("write data to client %s failed, %v", bindLn.LocalAddr(), err)
+							s.logger.Errorf("write data to client %s failed, %v", bindLn.LocalAddr(), err)
 							return
 						}
 						s.bufferPool.Put(tmpBufPool)
