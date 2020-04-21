@@ -11,7 +11,7 @@ func TestNoAuth(t *testing.T) {
 	var resp bytes.Buffer
 
 	s := New()
-	ctx, err := s.authenticate(&resp, req)
+	ctx, err := s.authenticate(&resp, req, "")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -40,7 +40,7 @@ func TestPasswordAuth_Valid(t *testing.T) {
 
 	s := New(WithAuthMethods([]Authenticator{cator}))
 
-	ctx, err := s.authenticate(&resp, req)
+	ctx, err := s.authenticate(&resp, req, "")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -76,7 +76,7 @@ func TestPasswordAuth_Invalid(t *testing.T) {
 	cator := UserPassAuthenticator{Credentials: cred}
 	s := New(WithAuthMethods([]Authenticator{cator}))
 
-	ctx, err := s.authenticate(&resp, req)
+	ctx, err := s.authenticate(&resp, req, "")
 	if err != UserAuthFailed {
 		t.Fatalf("err: %v", err)
 	}
@@ -103,7 +103,7 @@ func TestNoSupportedAuth(t *testing.T) {
 
 	s := New(WithAuthMethods([]Authenticator{cator}))
 
-	ctx, err := s.authenticate(&resp, req)
+	ctx, err := s.authenticate(&resp, req, "")
 	if err != NoSupportedAuth {
 		t.Fatalf("err: %v", err)
 	}

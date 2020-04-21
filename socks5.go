@@ -117,7 +117,7 @@ func (s *Server) ServeConn(conn net.Conn) (err error) {
 	// Ensure we are compatible
 	if version[0] == VersionSocks5 {
 		// Authenticate the connection
-		authContext, err = s.authenticate(conn, bufConn)
+		authContext, err = s.authenticate(conn, bufConn, conn.RemoteAddr().String())
 		if err != nil {
 			err = fmt.Errorf("failed to authenticate: %v", err)
 			s.logger.Errorf("%v", err)

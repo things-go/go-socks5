@@ -32,7 +32,7 @@ type AuthContext struct {
 }
 
 type Authenticator interface {
-	Authenticate(reader io.Reader, writer io.Writer) (*AuthContext, error)
+	Authenticate(reader io.Reader, writer io.Writer, userIP string) (*AuthContext, error)
 	GetCode() uint8
 }
 
@@ -43,7 +43,7 @@ func (a NoAuthAuthenticator) GetCode() uint8 {
 	return MethodNoAuth
 }
 
-func (a NoAuthAuthenticator) Authenticate(reader io.Reader, writer io.Writer) (*AuthContext, error) {
+func (a NoAuthAuthenticator) Authenticate(reader io.Reader, writer io.Writer, userIP string) (*AuthContext, error) {
 	_, err := writer.Write([]byte{VersionSocks5, MethodNoAuth})
 	return &AuthContext{MethodNoAuth, nil}, err
 }
@@ -58,7 +58,7 @@ func (a UserPassAuthenticator) GetCode() uint8 {
 	return MethodUserPassAuth
 }
 
-func (a UserPassAuthenticator) Authenticate(reader io.Reader, writer io.Writer) (*AuthContext, error) {
+func (a UserPassAuthenticator) Authenticate(reader io.Reader, writer io.Writer, userIP string) (*AuthContext, error) {
 	// Tell the client to use user/pass auth
 	if _, err := writer.Write([]byte{VersionSocks5, MethodUserPassAuth}); err != nil {
 		return nil, err
@@ -95,7 +95,7 @@ func (a UserPassAuthenticator) Authenticate(reader io.Reader, writer io.Writer) 
 	}
 
 	// Verify the password
-	if a.Credentials.Valid(string(user), string(pass)) {
+	if a.Credentials.Valid(string(user), string(pass), userIP) {
 		if _, err := writer.Write([]byte{UserPassAuthVersion, AuthSuccess}); err != nil {
 			return nil, err
 		}
@@ -111,7 +111,7 @@ func (a UserPassAuthenticator) Authenticate(reader io.Reader, writer io.Writer) 
 }
 
 // authenticate is used to handle connection authentication
-func (s *Server) authenticate(conn io.Writer, bufConn io.Reader) (*AuthContext, error) {
+func (s *Server) authenticate(conn io.Writer, bufConn io.Reader, userIP string) (*AuthContext, error) {
 	// Get the methods
 	methods, err := readMethods(bufConn)
 	if err != nil {
@@ -122,7 +122,7 @@ func (s *Server) authenticate(conn io.Writer, bufConn io.Reader) (*AuthContext, 
 	for _, method := range methods {
 		cator, found := s.authMethods[method]
 		if found {
-			return cator.Authenticate(bufConn, conn)
+			return cator.Authenticate(bufConn, conn, userIP)
 		}
 	}
 

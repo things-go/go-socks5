@@ -266,7 +266,7 @@ func Test_SocksWithProxy(t *testing.T) {
 	}()
 	time.Sleep(10 * time.Millisecond)
 
-	dial, err := proxy.SOCKS5("tcp", "127.0.0.1:12395", &proxy.Auth{"foo", "bar"}, proxy.Direct)
+	dial, err := proxy.SOCKS5("tcp", "127.0.0.1:12395", &proxy.Auth{User: "foo", Password: "bar"}, proxy.Direct)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
