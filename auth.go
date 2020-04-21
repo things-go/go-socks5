@@ -6,13 +6,13 @@ import (
 )
 
 const (
-	NoAuth              = uint8(0)
-	GSSAPI              = uint8(1)
-	UserPassAuth        = uint8(2)
-	NoAcceptable        = uint8(255)
-	userPassAuthVersion = uint8(1)
-	authSuccess         = uint8(0)
-	authFailure         = uint8(1)
+	MethodNoAuth        = uint8(0)
+	MethodGSSAPI        = uint8(1)
+	MethodUserPassAuth  = uint8(2)
+	MethodNoAcceptable  = uint8(255)
+	UserPassAuthVersion = uint8(1)
+	AuthSuccess         = uint8(0)
+	AuthFailure         = uint8(1)
 )
 
 var (
@@ -40,12 +40,12 @@ type Authenticator interface {
 type NoAuthAuthenticator struct{}
 
 func (a NoAuthAuthenticator) GetCode() uint8 {
-	return NoAuth
+	return MethodNoAuth
 }
 
 func (a NoAuthAuthenticator) Authenticate(reader io.Reader, writer io.Writer) (*AuthContext, error) {
-	_, err := writer.Write([]byte{socks5Version, NoAuth})
-	return &AuthContext{NoAuth, nil}, err
+	_, err := writer.Write([]byte{VersionSocks5, MethodNoAuth})
+	return &AuthContext{MethodNoAuth, nil}, err
 }
 
 // UserPassAuthenticator is used to handle username/password based
@@ -55,12 +55,12 @@ type UserPassAuthenticator struct {
 }
 
 func (a UserPassAuthenticator) GetCode() uint8 {
-	return UserPassAuth
+	return MethodUserPassAuth
 }
 
 func (a UserPassAuthenticator) Authenticate(reader io.Reader, writer io.Writer) (*AuthContext, error) {
 	// Tell the client to use user/pass auth
-	if _, err := writer.Write([]byte{socks5Version, UserPassAuth}); err != nil {
+	if _, err := writer.Write([]byte{VersionSocks5, MethodUserPassAuth}); err != nil {
 		return nil, err
 	}
 
@@ -71,7 +71,7 @@ func (a UserPassAuthenticator) Authenticate(reader io.Reader, writer io.Writer) 
 	}
 
 	// Ensure we are compatible
-	if header[0] != userPassAuthVersion {
+	if header[0] != UserPassAuthVersion {
 		return nil, fmt.Errorf("Unsupported auth version: %v", header[0])
 	}
 
@@ -96,18 +96,18 @@ func (a UserPassAuthenticator) Authenticate(reader io.Reader, writer io.Writer) 
 
 	// Verify the password
 	if a.Credentials.Valid(string(user), string(pass)) {
-		if _, err := writer.Write([]byte{userPassAuthVersion, authSuccess}); err != nil {
+		if _, err := writer.Write([]byte{UserPassAuthVersion, AuthSuccess}); err != nil {
 			return nil, err
 		}
 	} else {
-		if _, err := writer.Write([]byte{userPassAuthVersion, authFailure}); err != nil {
+		if _, err := writer.Write([]byte{UserPassAuthVersion, AuthFailure}); err != nil {
 			return nil, err
 		}
 		return nil, UserAuthFailed
 	}
 
 	// Done
-	return &AuthContext{UserPassAuth, map[string]string{"Username": string(user)}}, nil
+	return &AuthContext{MethodUserPassAuth, map[string]string{"Username": string(user)}}, nil
 }
 
 // authenticate is used to handle connection authentication
@@ -133,7 +133,7 @@ func (s *Server) authenticate(conn io.Writer, bufConn io.Reader) (*AuthContext, 
 // noAcceptableAuth is used to handle when we have no eligible
 // authentication mechanism
 func noAcceptableAuth(conn io.Writer) error {
-	conn.Write([]byte{socks5Version, NoAcceptable})
+	conn.Write([]byte{VersionSocks5, MethodNoAcceptable})
 	return NoSupportedAuth
 }
 

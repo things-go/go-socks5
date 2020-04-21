@@ -51,7 +51,7 @@ func NewRequest(bufConn io.Reader) (*Request, error) {
 	if err != nil {
 		return nil, err
 	}
-	if hd.Command != ConnectCommand && hd.Command != BindCommand && hd.Command != AssociateCommand {
+	if hd.Command != CommandConnect && hd.Command != CommandBind && hd.Command != CommandAssociate {
 		return nil, fmt.Errorf("unrecognized command[%d]", hd.Command)
 	}
 	return &Request{
@@ -87,11 +87,11 @@ func (s *Server) handleRequest(write io.Writer, req *Request) error {
 
 	// Switch on the command
 	switch req.Command {
-	case ConnectCommand:
+	case CommandConnect:
 		return s.handleConnect(ctx, write, req)
-	case BindCommand:
+	case CommandBind:
 		return s.handleBind(ctx, write, req)
-	case AssociateCommand:
+	case CommandAssociate:
 		return s.handleAssociate(ctx, write, req)
 	default:
 		if err := sendReply(write, req.Header, commandNotSupported); err != nil {
@@ -268,13 +268,13 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, req *Req
 			addrLen := 0
 			headLen := 0
 			var addrSpc AddrSpec
-			if addrType == ipv4Address {
+			if addrType == ATYPIPv4 {
 				headLen = 4 + net.IPv4len + 2
 				addrLen = net.IPv4len
 				addrSpc.IP = make(net.IP, net.IPv4len)
 				copy(addrSpc.IP, buf[4:4+net.IPv4len])
 				addrSpc.Port = buildPort(buf[4+net.IPv4len], buf[4+net.IPv4len+1])
-			} else if addrType == ipv6Address {
+			} else if addrType == ATYPIPV6 {
 				headLen = 4 + net.IPv6len + 2
 				if n <= headLen {
 					continue
@@ -283,7 +283,7 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, req *Req
 				addrSpc.IP = make(net.IP, net.IPv6len)
 				copy(addrSpc.IP, buf[4:4+net.IPv6len])
 				addrSpc.Port = buildPort(buf[4+net.IPv6len], buf[4+net.IPv6len+1])
-			} else if addrType == fqdnAddress {
+			} else if addrType == ATYPDomain {
 				addrLen = int(buf[4])
 				headLen = 4 + 1 + addrLen + 2
 				if n <= headLen {
@@ -326,11 +326,11 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, req *Req
 						rAddr, _ := net.ResolveUDPAddr("udp", remote.String())
 						hi, lo := breakPort(rAddr.Port)
 						if rAddr.IP.To4() != nil {
-							proBuf = append(proBuf, []byte{0, 0, 0, ipv4Address}...)
+							proBuf = append(proBuf, []byte{0, 0, 0, ATYPIPv4}...)
 							proBuf = append(proBuf, rAddr.IP.To4()...)
 							proBuf = append(proBuf, hi, lo)
 						} else if rAddr.IP.To16() != nil {
-							proBuf = append(proBuf, []byte{0, 0, 0, ipv6Address}...)
+							proBuf = append(proBuf, []byte{0, 0, 0, ATYPIPV6}...)
 							proBuf = append(proBuf, rAddr.IP.To16()...)
 							proBuf = append(proBuf, hi, lo)
 						} else { // should never happen
@@ -375,7 +375,7 @@ func sendReply(w io.Writer, head Header, resp uint8, bindAddr ...net.Addr) error
 	head.Command = resp
 
 	if len(bindAddr) == 0 {
-		head.addrType = ipv4Address
+		head.addrType = ATYPIPv4
 		head.Address.IP = []byte{0, 0, 0, 0}
 		head.Address.Port = 0
 	} else {
@@ -392,15 +392,15 @@ func sendReply(w io.Writer, head Header, resp uint8, bindAddr ...net.Addr) error
 		}
 		switch {
 		case addrSpec.FQDN != "":
-			head.addrType = fqdnAddress
+			head.addrType = ATYPDomain
 			head.Address.FQDN = addrSpec.FQDN
 			head.Address.Port = addrSpec.Port
 		case addrSpec.IP.To4() != nil:
-			head.addrType = ipv4Address
+			head.addrType = ATYPIPv4
 			head.Address.IP = addrSpec.IP.To4()
 			head.Address.Port = addrSpec.Port
 		case addrSpec.IP.To16() != nil:
-			head.addrType = ipv6Address
+			head.addrType = ATYPIPV6
 			head.Address.IP = addrSpec.IP.To16()
 			head.Address.Port = addrSpec.Port
 		default:

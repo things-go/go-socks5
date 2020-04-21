@@ -115,7 +115,7 @@ func (s *Server) ServeConn(conn net.Conn) (err error) {
 
 	var authContext *AuthContext
 	// Ensure we are compatible
-	if version[0] == socks5Version {
+	if version[0] == VersionSocks5 {
 		// Authenticate the connection
 		authContext, err = s.authenticate(conn, bufConn)
 		if err != nil {
@@ -123,7 +123,7 @@ func (s *Server) ServeConn(conn net.Conn) (err error) {
 			s.logger.Errorf("%v", err)
 			return err
 		}
-	} else if version[0] != socks4Version {
+	} else if version[0] != VersionSocks4 {
 		err := fmt.Errorf("unsupported SOCKS version: %v", version[0])
 		s.logger.Errorf("%v", err)
 		return err
@@ -138,7 +138,7 @@ func (s *Server) ServeConn(conn net.Conn) (err error) {
 		}
 		return fmt.Errorf("failed to read destination address, %v", err)
 	}
-	if request.Header.Version == socks5Version {
+	if request.Header.Version == VersionSocks5 {
 		request.AuthContext = authContext
 	}
 	if client, ok := conn.RemoteAddr().(*net.TCPAddr); ok {

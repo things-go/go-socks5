@@ -29,11 +29,11 @@ type PermitCommand struct {
 
 func (p *PermitCommand) Allow(ctx context.Context, req *Request) (context.Context, bool) {
 	switch req.Command {
-	case ConnectCommand:
+	case CommandConnect:
 		return ctx, p.EnableConnect
-	case BindCommand:
+	case CommandBind:
 		return ctx, p.EnableBind
-	case AssociateCommand:
+	case CommandAssociate:
 		return ctx, p.EnableAssociate
 	}
 	return ctx, false

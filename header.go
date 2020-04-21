@@ -9,19 +9,19 @@ import (
 
 const (
 	// protocol version
-	socks4Version = uint8(4)
-	socks5Version = uint8(5)
+	VersionSocks4 = uint8(4)
+	VersionSocks5 = uint8(5)
 	// request command
-	ConnectCommand   = uint8(1)
-	BindCommand      = uint8(2)
-	AssociateCommand = uint8(3) // udp associate
+	CommandConnect   = uint8(1)
+	CommandBind      = uint8(2)
+	CommandAssociate = uint8(3)
 	// address type
-	ipv4Address = uint8(1)
-	fqdnAddress = uint8(3) // domain
-	ipv6Address = uint8(4)
+	ATYPIPv4   = uint8(1)
+	ATYPDomain = uint8(3) // domain
+	ATYPIPV6   = uint8(4)
 )
 
-//
+// reply status
 const (
 	successReply uint8 = iota
 	serverFailure
@@ -37,19 +37,12 @@ const (
 
 // head len defined
 const (
-	// common fields
-	reqProtocolVersionBytePos = uint8(0) // proto version pos
-	reqCommandBytePos         = uint8(1)
-	reqAddrBytePos            = uint8(4)
-	reqStartLen               = uint8(4)
-
-	headVERLen      = 1
-	headCMDLen      = 1
-	headRSVLen      = 1
-	headATYPLen     = 1
-	headPORTLen     = 2
-	headFQDNAddrLen = 1
-	reqFQDNAddr     = 249
+	headVERLen        = 1
+	headCMDLen        = 1
+	headRSVLen        = 1
+	headATYPLen       = 1
+	headPORTLen       = 2
+	headDomainAddrLen = 1
 )
 
 // AddrSpec is used to return the target AddrSpec
@@ -99,15 +92,15 @@ func Parse(r io.Reader) (hd Header, err error) {
 	hd.Version = tmp[0]
 	hd.Command = tmp[1]
 
-	if hd.Version != socks5Version && hd.Version != socks4Version {
+	if hd.Version != VersionSocks5 && hd.Version != VersionSocks4 {
 		return hd, fmt.Errorf("unrecognized SOCKS version[%d]", hd.Version)
 	}
 
-	if hd.Version == socks4Version && hd.Command == AssociateCommand {
+	if hd.Version == VersionSocks4 && hd.Command == CommandAssociate {
 		return hd, fmt.Errorf("wrong version for command")
 	}
 
-	if hd.Version == socks4Version {
+	if hd.Version == VersionSocks4 {
 		// read port and ipv4 ip
 		tmp = make([]byte, headPORTLen+net.IPv4len)
 		if _, err = io.ReadFull(r, tmp); err != nil {
@@ -115,7 +108,7 @@ func Parse(r io.Reader) (hd Header, err error) {
 		}
 		hd.Address.Port = buildPort(tmp[0], tmp[1])
 		hd.Address.IP = tmp[2:]
-	} else if hd.Version == socks5Version {
+	} else if hd.Version == VersionSocks5 {
 		tmp = make([]byte, headRSVLen+headATYPLen)
 		if _, err = io.ReadFull(r, tmp); err != nil {
 			return hd, fmt.Errorf("failed to get header RSV and address type, %v", err)
@@ -123,7 +116,7 @@ func Parse(r io.Reader) (hd Header, err error) {
 		hd.Reserved = tmp[0]
 		hd.addrType = tmp[1]
 		switch hd.addrType {
-		case fqdnAddress:
+		case ATYPDomain:
 			if _, err = io.ReadFull(r, tmp[:1]); err != nil {
 				return hd, fmt.Errorf("failed to get header, %v", err)
 			}
@@ -134,14 +127,14 @@ func Parse(r io.Reader) (hd Header, err error) {
 			}
 			hd.Address.FQDN = string(addr[:addrLen])
 			hd.Address.Port = buildPort(addr[addrLen], addr[addrLen+1])
-		case ipv4Address:
+		case ATYPIPv4:
 			addr := make([]byte, net.IPv4len+2)
 			if _, err = io.ReadFull(r, addr); err != nil {
 				return hd, fmt.Errorf("failed to get header, %v", err)
 			}
 			hd.Address.IP = addr[:net.IPv4len]
 			hd.Address.Port = buildPort(addr[net.IPv4len], addr[net.IPv4len+1])
-		case ipv6Address:
+		case ATYPIPV6:
 			addr := make([]byte, net.IPv6len+2)
 			if _, err = io.ReadFull(r, addr); err != nil {
 				return hd, fmt.Errorf("failed to get header, %v", err)
@@ -159,18 +152,18 @@ func (h Header) Bytes() (b []byte) {
 	b = append(b, h.Version)
 	b = append(b, h.Command)
 	hiPort, loPort := breakPort(h.Address.Port)
-	if h.Version == socks4Version {
+	if h.Version == VersionSocks4 {
 		b = append(b, hiPort, loPort)
 		b = append(b, h.Address.IP...)
-	} else if h.Version == socks5Version {
+	} else if h.Version == VersionSocks5 {
 		b = append(b, h.Reserved)
 		b = append(b, h.addrType)
-		if h.addrType == fqdnAddress {
+		if h.addrType == ATYPDomain {
 			b = append(b, byte(len(h.Address.FQDN)))
 			b = append(b, []byte(h.Address.FQDN)...)
-		} else if h.addrType == ipv4Address {
+		} else if h.addrType == ATYPIPv4 {
 			b = append(b, h.Address.IP.To4()...)
-		} else if h.addrType == ipv6Address {
+		} else if h.addrType == ATYPIPV6 {
 			b = append(b, h.Address.IP.To16()...)
 		}
 		b = append(b, hiPort, loPort)

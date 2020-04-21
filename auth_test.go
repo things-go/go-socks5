@@ -7,7 +7,7 @@ import (
 
 func TestNoAuth(t *testing.T) {
 	req := bytes.NewBuffer(nil)
-	req.Write([]byte{1, NoAuth})
+	req.Write([]byte{1, MethodNoAuth})
 	var resp bytes.Buffer
 
 	s := New()
@@ -16,19 +16,19 @@ func TestNoAuth(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if ctx.Method != NoAuth {
+	if ctx.Method != MethodNoAuth {
 		t.Fatal("Invalid Context Method")
 	}
 
 	out := resp.Bytes()
-	if !bytes.Equal(out, []byte{socks5Version, NoAuth}) {
+	if !bytes.Equal(out, []byte{VersionSocks5, MethodNoAuth}) {
 		t.Fatalf("bad: %v", out)
 	}
 }
 
 func TestPasswordAuth_Valid(t *testing.T) {
 	req := bytes.NewBuffer(nil)
-	req.Write([]byte{2, NoAuth, UserPassAuth})
+	req.Write([]byte{2, MethodNoAuth, MethodUserPassAuth})
 	req.Write([]byte{1, 3, 'f', 'o', 'o', 3, 'b', 'a', 'r'})
 	var resp bytes.Buffer
 
@@ -45,7 +45,7 @@ func TestPasswordAuth_Valid(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if ctx.Method != UserPassAuth {
+	if ctx.Method != MethodUserPassAuth {
 		t.Fatal("Invalid Context Method")
 	}
 
@@ -59,14 +59,14 @@ func TestPasswordAuth_Valid(t *testing.T) {
 	}
 
 	out := resp.Bytes()
-	if !bytes.Equal(out, []byte{socks5Version, UserPassAuth, 1, authSuccess}) {
+	if !bytes.Equal(out, []byte{VersionSocks5, MethodUserPassAuth, 1, AuthSuccess}) {
 		t.Fatalf("bad: %v", out)
 	}
 }
 
 func TestPasswordAuth_Invalid(t *testing.T) {
 	req := bytes.NewBuffer(nil)
-	req.Write([]byte{2, NoAuth, UserPassAuth})
+	req.Write([]byte{2, MethodNoAuth, MethodUserPassAuth})
 	req.Write([]byte{1, 3, 'f', 'o', 'o', 3, 'b', 'a', 'z'})
 	var resp bytes.Buffer
 
@@ -86,14 +86,14 @@ func TestPasswordAuth_Invalid(t *testing.T) {
 	}
 
 	out := resp.Bytes()
-	if !bytes.Equal(out, []byte{socks5Version, UserPassAuth, 1, authFailure}) {
+	if !bytes.Equal(out, []byte{VersionSocks5, MethodUserPassAuth, 1, AuthFailure}) {
 		t.Fatalf("bad: %v", out)
 	}
 }
 
 func TestNoSupportedAuth(t *testing.T) {
 	req := bytes.NewBuffer(nil)
-	req.Write([]byte{1, NoAuth})
+	req.Write([]byte{1, MethodNoAuth})
 	var resp bytes.Buffer
 
 	cred := StaticCredentials{
@@ -113,7 +113,7 @@ func TestNoSupportedAuth(t *testing.T) {
 	}
 
 	out := resp.Bytes()
-	if !bytes.Equal(out, []byte{socks5Version, NoAcceptable}) {
+	if !bytes.Equal(out, []byte{VersionSocks5, MethodNoAcceptable}) {
 		t.Fatalf("bad: %v", out)
 	}
 }

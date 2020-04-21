@@ -62,18 +62,18 @@ func TestSOCKS5_Connect(t *testing.T) {
 
 	// Connect, auth and connec to local
 	req := new(bytes.Buffer)
-	req.Write([]byte{socks5Version, 2, NoAuth, UserPassAuth})
-	req.Write([]byte{userPassAuthVersion, 3, 'f', 'o', 'o', 3, 'b', 'a', 'r'})
+	req.Write([]byte{VersionSocks5, 2, MethodNoAuth, MethodUserPassAuth})
+	req.Write([]byte{UserPassAuthVersion, 3, 'f', 'o', 'o', 3, 'b', 'a', 'r'})
 	reqHead := Header{
-		Version:  socks5Version,
-		Command:  ConnectCommand,
+		Version:  VersionSocks5,
+		Command:  CommandConnect,
 		Reserved: 0,
 		Address: AddrSpec{
 			"",
 			net.ParseIP("127.0.0.1"),
 			lAddr.Port,
 		},
-		addrType: ipv4Address,
+		addrType: ATYPIPv4,
 	}
 	req.Write(reqHead.Bytes())
 	// Send a ping
@@ -84,11 +84,11 @@ func TestSOCKS5_Connect(t *testing.T) {
 
 	// Verify response
 	expected := []byte{
-		socks5Version, UserPassAuth, // use user password auth
-		userPassAuthVersion, authSuccess, // response auth success
+		VersionSocks5, MethodUserPassAuth, // use user password auth
+		UserPassAuthVersion, AuthSuccess, // response auth success
 	}
 	rspHead := Header{
-		Version:  socks5Version,
+		Version:  VersionSocks5,
 		Command:  successReply,
 		Reserved: 0,
 		Address: AddrSpec{
@@ -96,7 +96,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 			net.ParseIP("127.0.0.1"),
 			0, // Ignore the port
 		},
-		addrType: ipv4Address,
+		addrType: ATYPIPv4,
 	}
 	expected = append(expected, rspHead.Bytes()...)
 	expected = append(expected, []byte("pong")...)
@@ -166,18 +166,18 @@ func TestSOCKS5_Associate(t *testing.T) {
 
 	// Connect, auth and connec to local
 	req := new(bytes.Buffer)
-	req.Write([]byte{socks5Version, 2, NoAuth, UserPassAuth})
-	req.Write([]byte{userPassAuthVersion, 3, 'f', 'o', 'o', 3, 'b', 'a', 'r'})
+	req.Write([]byte{VersionSocks5, 2, MethodNoAuth, MethodUserPassAuth})
+	req.Write([]byte{UserPassAuthVersion, 3, 'f', 'o', 'o', 3, 'b', 'a', 'r'})
 	reqHead := Header{
-		Version:  socks5Version,
-		Command:  AssociateCommand,
+		Version:  VersionSocks5,
+		Command:  CommandAssociate,
 		Reserved: 0,
 		Address: AddrSpec{
 			"",
 			locIP,
 			lAddr.Port,
 		},
-		addrType: ipv4Address,
+		addrType: ATYPIPv4,
 	}
 	req.Write(reqHead.Bytes())
 	// Send all the bytes
@@ -185,8 +185,8 @@ func TestSOCKS5_Associate(t *testing.T) {
 
 	// Verify response
 	expected := []byte{
-		socks5Version, UserPassAuth, // use user password auth
-		userPassAuthVersion, authSuccess, // response auth success
+		VersionSocks5, MethodUserPassAuth, // use user password auth
+		UserPassAuthVersion, AuthSuccess, // response auth success
 	}
 
 	out := make([]byte, len(expected))
@@ -203,7 +203,7 @@ func TestSOCKS5_Associate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("bad response header: %v", err)
 	}
-	if rspHead.Version != socks5Version && rspHead.Command != successReply {
+	if rspHead.Version != VersionSocks5 && rspHead.Command != successReply {
 		t.Fatalf("parse success but bad header: %v", rspHead)
 	}
 
@@ -217,7 +217,7 @@ func TestSOCKS5_Associate(t *testing.T) {
 		t.Fatalf("bad dial: %v", err)
 	}
 	// Send a ping
-	udpConn.Write(append([]byte{0, 0, 0, ipv4Address, 0, 0, 0, 0, 0, 0}, []byte("ping")...))
+	udpConn.Write(append([]byte{0, 0, 0, ATYPIPv4, 0, 0, 0, 0, 0, 0}, []byte("ping")...))
 	response := make([]byte, 1024)
 	n, _, err := udpConn.ReadFrom(response)
 	if !bytes.Equal(response[n-4:n], []byte("pong")) {
