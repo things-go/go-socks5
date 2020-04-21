@@ -1,4 +1,4 @@
-module github.com/thinkgos/socks5
+module github.com/thinkgos/go-socks5
 
 go 1.14
 
