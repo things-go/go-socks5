@@ -85,6 +85,16 @@ func (s *Server) handleRequest(write io.Writer, req *Request) error {
 		ctx, req.realDestAddr = s.rewriter.Rewrite(ctx, req)
 	}
 
+	// Check if this is allowed
+	if ctx_, ok := s.rules.Allow(ctx, req); !ok {
+		if err := sendReply(write, req.Header, ruleFailure); err != nil {
+			return fmt.Errorf("failed to send reply, %v", err)
+		}
+		return fmt.Errorf("bind to %v blocked by rules", req.DestAddr)
+	} else {
+		ctx = ctx_
+	}
+
 	// Switch on the command
 	switch req.Command {
 	case CommandConnect:
@@ -103,16 +113,6 @@ func (s *Server) handleRequest(write io.Writer, req *Request) error {
 
 // handleConnect is used to handle a connect command
 func (s *Server) handleConnect(ctx context.Context, writer io.Writer, req *Request) error {
-	// Check if this is allowed
-	if ctx_, ok := s.rules.Allow(ctx, req); !ok {
-		if err := sendReply(writer, req.Header, ruleFailure); err != nil {
-			return fmt.Errorf("failed to send reply, %v", err)
-		}
-		return fmt.Errorf("connect to %v blocked by rules", req.DestAddr)
-	} else {
-		ctx = ctx_
-	}
-
 	// Attempt to connect
 	dial := s.dial
 	if dial == nil {
@@ -160,16 +160,6 @@ func (s *Server) handleConnect(ctx context.Context, writer io.Writer, req *Reque
 
 // handleBind is used to handle a connect command
 func (s *Server) handleBind(ctx context.Context, writer io.Writer, req *Request) error {
-	// Check if this is allowed
-	if ctx_, ok := s.rules.Allow(ctx, req); !ok {
-		if err := sendReply(writer, req.Header, ruleFailure); err != nil {
-			return fmt.Errorf("failed to send reply, %v", err)
-		}
-		return fmt.Errorf("bind to %v blocked by rules", req.DestAddr)
-	} else {
-		ctx = ctx_
-	}
-
 	// TODO: Support bind
 	if err := sendReply(writer, req.Header, commandNotSupported); err != nil {
 		return fmt.Errorf("failed to send reply: %v", err)
@@ -179,16 +169,6 @@ func (s *Server) handleBind(ctx context.Context, writer io.Writer, req *Request)
 
 // handleAssociate is used to handle a connect command
 func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, req *Request) error {
-	// Check if this is allowed
-	if ctx_, ok := s.rules.Allow(ctx, req); !ok {
-		if err := sendReply(writer, req.Header, ruleFailure); err != nil {
-			return fmt.Errorf("failed to send reply, %v", err)
-		}
-		return fmt.Errorf("associate to %v blocked by rules", req.DestAddr)
-	} else {
-		ctx = ctx_
-	}
-
 	// Attempt to connect
 	dial := s.dial
 	if dial == nil {
