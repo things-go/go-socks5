@@ -27,6 +27,7 @@ type PermitCommand struct {
 	EnableAssociate bool
 }
 
+// Allow implement interface RuleSet
 func (p *PermitCommand) Allow(ctx context.Context, req *Request) (context.Context, bool) {
 	switch req.Command {
 	case CommandConnect:

@@ -5,6 +5,7 @@ import (
 	"io"
 )
 
+// auth defined
 const (
 	MethodNoAuth        = uint8(0)
 	MethodGSSAPI        = uint8(1)
@@ -15,12 +16,13 @@ const (
 	AuthFailure         = uint8(1)
 )
 
+// auth error defined
 var (
-	UserAuthFailed  = fmt.Errorf("User authentication failed")
-	NoSupportedAuth = fmt.Errorf("No supported authentication mechanism")
+	ErrUserAuthFailed  = fmt.Errorf("User authentication failed")
+	ErrNoSupportedAuth = fmt.Errorf("No supported authentication mechanism")
 )
 
-// A Request encapsulates authentication state provided
+// AuthContext A Request encapsulates authentication state provided
 // during negotiation
 type AuthContext struct {
 	// Provided auth method
@@ -31,6 +33,7 @@ type AuthContext struct {
 	Payload map[string]string
 }
 
+// Authenticator provide auth
 type Authenticator interface {
 	Authenticate(reader io.Reader, writer io.Writer, userAddr string) (*AuthContext, error)
 	GetCode() uint8
@@ -39,10 +42,12 @@ type Authenticator interface {
 // NoAuthAuthenticator is used to handle the "No Authentication" mode
 type NoAuthAuthenticator struct{}
 
+// GetCode implement interface Authenticator
 func (a NoAuthAuthenticator) GetCode() uint8 {
 	return MethodNoAuth
 }
 
+// Authenticate implement interface Authenticator
 func (a NoAuthAuthenticator) Authenticate(reader io.Reader, writer io.Writer, userAddr string) (*AuthContext, error) {
 	_, err := writer.Write([]byte{VersionSocks5, MethodNoAuth})
 	return &AuthContext{MethodNoAuth, nil}, err
@@ -54,10 +59,12 @@ type UserPassAuthenticator struct {
 	Credentials CredentialStore
 }
 
+// GetCode implement interface Authenticator
 func (a UserPassAuthenticator) GetCode() uint8 {
 	return MethodUserPassAuth
 }
 
+// Authenticate implement interface Authenticator
 func (a UserPassAuthenticator) Authenticate(reader io.Reader, writer io.Writer, userAddr string) (*AuthContext, error) {
 	// Tell the client to use user/pass auth
 	if _, err := writer.Write([]byte{VersionSocks5, MethodUserPassAuth}); err != nil {
@@ -103,7 +110,7 @@ func (a UserPassAuthenticator) Authenticate(reader io.Reader, writer io.Writer, 
 		if _, err := writer.Write([]byte{UserPassAuthVersion, AuthFailure}); err != nil {
 			return nil, err
 		}
-		return nil, UserAuthFailed
+		return nil, ErrUserAuthFailed
 	}
 
 	// Done
@@ -134,7 +141,7 @@ func (s *Server) authenticate(conn io.Writer, bufConn io.Reader, userAddr string
 // authentication mechanism
 func noAcceptableAuth(conn io.Writer) error {
 	conn.Write([]byte{VersionSocks5, MethodNoAcceptable})
-	return NoSupportedAuth
+	return ErrNoSupportedAuth
 }
 
 // readMethods is used to read the number of methods

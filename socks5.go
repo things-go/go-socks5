@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net"
@@ -47,6 +48,10 @@ type Server struct {
 	bufferPool *pool
 	// goroutine pool
 	gPool GPool
+	// user's handle
+	userConnectHandle   func(ctx context.Context, writer io.Writer, req *Request) error
+	userBindHandle      func(ctx context.Context, writer io.Writer, req *Request) error
+	userAssociateHandle func(ctx context.Context, writer io.Writer, req *Request) error
 }
 
 // New creates a new Server and potentially returns an error
@@ -131,8 +136,8 @@ func (s *Server) ServeConn(conn net.Conn) (err error) {
 
 	request, err := NewRequest(bufConn)
 	if err != nil {
-		if err == unrecognizedAddrType {
-			if err := sendReply(conn, Header{Version: version[0]}, addrTypeNotSupported); err != nil {
+		if err == errUnrecognizedAddrType {
+			if err := SendReply(conn, Header{Version: version[0]}, addrTypeNotSupported); err != nil {
 				return fmt.Errorf("failed to send reply, %v", err)
 			}
 		}

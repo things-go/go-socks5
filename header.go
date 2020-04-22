@@ -1,12 +1,14 @@
 package socks5
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net"
 	"strconv"
 )
 
+// socks const defined
 const (
 	// protocol version
 	VersionSocks4 = uint8(4)
@@ -83,6 +85,7 @@ type Header struct {
 	addrType uint8
 }
 
+// Parse to header
 func Parse(r io.Reader) (hd Header, err error) {
 	// Read the version and command
 	tmp := make([]byte, headVERLen+headCMDLen)
@@ -142,13 +145,15 @@ func Parse(r io.Reader) (hd Header, err error) {
 			hd.Address.IP = addr[:net.IPv6len]
 			hd.Address.Port = buildPort(addr[net.IPv6len], addr[net.IPv6len+1])
 		default:
-			return hd, unrecognizedAddrType
+			return hd, errUnrecognizedAddrType
 		}
 	}
 	return hd, nil
 }
 
+// Bytes returns a slice of header
 func (h Header) Bytes() (b []byte) {
+	bytes.Buffer{}.Bytes()
 	b = append(b, h.Version)
 	b = append(b, h.Command)
 	hiPort, loPort := breakPort(h.Address.Port)

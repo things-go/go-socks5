@@ -77,7 +77,7 @@ func TestPasswordAuth_Invalid(t *testing.T) {
 	s := New(WithAuthMethods([]Authenticator{cator}))
 
 	ctx, err := s.authenticate(&resp, req, "")
-	if err != UserAuthFailed {
+	if err != ErrUserAuthFailed {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -104,7 +104,7 @@ func TestNoSupportedAuth(t *testing.T) {
 	s := New(WithAuthMethods([]Authenticator{cator}))
 
 	ctx, err := s.authenticate(&resp, req, "")
-	if err != NoSupportedAuth {
+	if err != ErrNoSupportedAuth {
 		t.Fatalf("err: %v", err)
 	}
 
