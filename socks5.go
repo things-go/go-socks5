@@ -101,7 +101,10 @@ func (s *Server) Serve(l net.Listener) error {
 			return err
 		}
 		s.submit(func() {
-			s.ServeConn(conn)
+			err := s.ServeConn(conn)
+			if err != nil {
+				s.logger.Errorf("server conn %v", err)
+			}
 		})
 	}
 }
@@ -137,7 +140,7 @@ func (s *Server) ServeConn(conn net.Conn) (err error) {
 	request, err := NewRequest(bufConn)
 	if err != nil {
 		if err == errUnrecognizedAddrType {
-			if err := SendReply(conn, Header{Version: version[0]}, addrTypeNotSupported); err != nil {
+			if err := SendReply(conn, Header{Version: version[0]}, RepAddrTypeNotSupported); err != nil {
 				return fmt.Errorf("failed to send reply, %v", err)
 			}
 		}

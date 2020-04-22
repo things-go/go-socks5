@@ -33,7 +33,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 		if !bytes.Equal(buf, []byte("ping")) {
 			t.Fatalf("bad: %v", buf)
 		}
-		conn.Write([]byte("pong"))
+		_, _ = conn.Write([]byte("pong"))
 	}()
 	lAddr := l.Addr().(*net.TCPAddr)
 
@@ -89,7 +89,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 	}
 	rspHead := Header{
 		Version:  VersionSocks5,
-		Command:  successReply,
+		Command:  RepSuccess,
 		Reserved: 0,
 		Address: AddrSpec{
 			"",
@@ -102,7 +102,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 	expected = append(expected, []byte("pong")...)
 
 	out := make([]byte, len(expected))
-	conn.SetDeadline(time.Now().Add(time.Second))
+	_ = conn.SetDeadline(time.Now().Add(time.Second))
 	if _, err := io.ReadFull(conn, out); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -140,7 +140,7 @@ func TestSOCKS5_Associate(t *testing.T) {
 			if !bytes.Equal(buf[:n], []byte("ping")) {
 				t.Fatalf("bad: %v", buf)
 			}
-			l.WriteTo([]byte("pong"), remote)
+			_, _ = l.WriteTo([]byte("pong"), remote)
 		}
 	}()
 
@@ -190,7 +190,7 @@ func TestSOCKS5_Associate(t *testing.T) {
 	}
 
 	out := make([]byte, len(expected))
-	conn.SetDeadline(time.Now().Add(time.Second))
+	_ = conn.SetDeadline(time.Now().Add(time.Second))
 	if _, err := io.ReadFull(conn, out); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -203,7 +203,7 @@ func TestSOCKS5_Associate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("bad response header: %v", err)
 	}
-	if rspHead.Version != VersionSocks5 && rspHead.Command != successReply {
+	if rspHead.Version != VersionSocks5 && rspHead.Command != RepSuccess {
 		t.Fatalf("parse success but bad header: %v", rspHead)
 	}
 
@@ -217,10 +217,10 @@ func TestSOCKS5_Associate(t *testing.T) {
 		t.Fatalf("bad dial: %v", err)
 	}
 	// Send a ping
-	udpConn.Write(append([]byte{0, 0, 0, ATYPIPv4, 0, 0, 0, 0, 0, 0}, []byte("ping")...))
+	_, _ = udpConn.Write(append([]byte{0, 0, 0, ATYPIPv4, 0, 0, 0, 0, 0, 0}, []byte("ping")...))
 	response := make([]byte, 1024)
 	n, _, err := udpConn.ReadFrom(response)
-	if !bytes.Equal(response[n-4:n], []byte("pong")) {
+	if err != nil || !bytes.Equal(response[n-4:n], []byte("pong")) {
 		t.Fatalf("bad udp read: %v", string(response[:n]))
 	}
 	time.Sleep(time.Second * 1)
@@ -278,10 +278,10 @@ func Test_SocksWithProxy(t *testing.T) {
 	}
 
 	// Send a ping
-	conn.Write([]byte("ping"))
+	_, _ = conn.Write([]byte("ping"))
 
 	out := make([]byte, 4)
-	conn.SetDeadline(time.Now().Add(time.Second))
+	_ = conn.SetDeadline(time.Now().Add(time.Second))
 	if _, err := io.ReadFull(conn, out); err != nil {
 		t.Fatalf("err: %v", err)
 	}

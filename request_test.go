@@ -44,7 +44,7 @@ func TestRequest_Connect(t *testing.T) {
 		if !bytes.Equal(buf, []byte("ping")) {
 			t.Fatalf("bad: %v", buf)
 		}
-		conn.Write([]byte("pong"))
+		_, _ = conn.Write([]byte("pong"))
 	}()
 	lAddr := l.Addr().(*net.TCPAddr)
 
@@ -120,7 +120,7 @@ func TestRequest_Connect_RuleFail(t *testing.T) {
 		if !bytes.Equal(buf, []byte("ping")) {
 			t.Fatalf("bad: %v", buf)
 		}
-		conn.Write([]byte("pong"))
+		_, _ = conn.Write([]byte("pong"))
 	}()
 	lAddr := l.Addr().(*net.TCPAddr)
 

@@ -1,7 +1,6 @@
 package socks5
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"net"
@@ -25,26 +24,25 @@ const (
 
 // reply status
 const (
-	successReply uint8 = iota
-	serverFailure
-	ruleFailure
-	networkUnreachable
-	hostUnreachable
-	connectionRefused
-	ttlExpired
-	commandNotSupported
-	addrTypeNotSupported
+	RepSuccess uint8 = iota
+	RepServerFailure
+	RepRuleFailure
+	RepNetworkUnreachable
+	RepHostUnreachable
+	RepConnectionRefused
+	RepTTLExpired
+	RepCommandNotSupported
+	RepAddrTypeNotSupported
 	// 0x09 - 0xff unassigned
 )
 
 // head len defined
 const (
-	headVERLen        = 1
-	headCMDLen        = 1
-	headRSVLen        = 1
-	headATYPLen       = 1
-	headPORTLen       = 2
-	headDomainAddrLen = 1
+	headVERLen  = 1
+	headCMDLen  = 1
+	headRSVLen  = 1
+	headATYPLen = 1
+	headPORTLen = 2
 )
 
 // AddrSpec is used to return the target AddrSpec
@@ -153,7 +151,6 @@ func Parse(r io.Reader) (hd Header, err error) {
 
 // Bytes returns a slice of header
 func (h Header) Bytes() (b []byte) {
-	bytes.Buffer{}.Bytes()
 	b = append(b, h.Version)
 	b = append(b, h.Command)
 	hiPort, loPort := breakPort(h.Address.Port)

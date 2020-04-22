@@ -48,7 +48,7 @@ func (a NoAuthAuthenticator) GetCode() uint8 {
 }
 
 // Authenticate implement interface Authenticator
-func (a NoAuthAuthenticator) Authenticate(reader io.Reader, writer io.Writer, userAddr string) (*AuthContext, error) {
+func (a NoAuthAuthenticator) Authenticate(_ io.Reader, writer io.Writer, _ string) (*AuthContext, error) {
 	_, err := writer.Write([]byte{VersionSocks5, MethodNoAuth})
 	return &AuthContext{MethodNoAuth, nil}, err
 }

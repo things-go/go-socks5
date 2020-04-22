@@ -71,7 +71,7 @@ func (s *Server) handleRequest(write io.Writer, req *Request) error {
 	if dest.FQDN != "" {
 		_ctx, addr, err := s.resolver.Resolve(ctx, dest.FQDN)
 		if err != nil {
-			if err := SendReply(write, req.Header, hostUnreachable); err != nil {
+			if err := SendReply(write, req.Header, RepHostUnreachable); err != nil {
 				return fmt.Errorf("failed to send reply, %v", err)
 			}
 			return fmt.Errorf("failed to resolve destination[%v], %v", dest.FQDN, err)
@@ -89,7 +89,7 @@ func (s *Server) handleRequest(write io.Writer, req *Request) error {
 	// Check if this is allowed
 	_ctx, ok := s.rules.Allow(ctx, req)
 	if !ok {
-		if err := SendReply(write, req.Header, ruleFailure); err != nil {
+		if err := SendReply(write, req.Header, RepRuleFailure); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
 		}
 		return fmt.Errorf("bind to %v blocked by rules", req.RawDestAddr)
@@ -114,7 +114,7 @@ func (s *Server) handleRequest(write io.Writer, req *Request) error {
 		}
 		return s.handleAssociate(ctx, write, req)
 	default:
-		if err := SendReply(write, req.Header, commandNotSupported); err != nil {
+		if err := SendReply(write, req.Header, RepCommandNotSupported); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
 		}
 		return fmt.Errorf("unsupported command[%v]", req.Command)
@@ -133,11 +133,11 @@ func (s *Server) handleConnect(ctx context.Context, writer io.Writer, req *Reque
 	target, err := dial(ctx, "tcp", req.DestAddr.Address())
 	if err != nil {
 		msg := err.Error()
-		resp := hostUnreachable
+		resp := RepHostUnreachable
 		if strings.Contains(msg, "refused") {
-			resp = connectionRefused
+			resp = RepConnectionRefused
 		} else if strings.Contains(msg, "network is unreachable") {
-			resp = networkUnreachable
+			resp = RepNetworkUnreachable
 		}
 		if err := SendReply(writer, req.Header, resp); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
@@ -147,7 +147,7 @@ func (s *Server) handleConnect(ctx context.Context, writer io.Writer, req *Reque
 	defer target.Close()
 
 	// Send success
-	if err := SendReply(writer, req.Header, successReply, target.LocalAddr()); err != nil {
+	if err := SendReply(writer, req.Header, RepSuccess, target.LocalAddr()); err != nil {
 		return fmt.Errorf("failed to send reply, %v", err)
 	}
 
@@ -169,9 +169,9 @@ func (s *Server) handleConnect(ctx context.Context, writer io.Writer, req *Reque
 }
 
 // handleBind is used to handle a connect command
-func (s *Server) handleBind(ctx context.Context, writer io.Writer, req *Request) error {
+func (s *Server) handleBind(_ context.Context, writer io.Writer, req *Request) error {
 	// TODO: Support bind
-	if err := SendReply(writer, req.Header, commandNotSupported); err != nil {
+	if err := SendReply(writer, req.Header, RepCommandNotSupported); err != nil {
 		return fmt.Errorf("failed to send reply: %v", err)
 	}
 	return nil
@@ -189,11 +189,11 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, req *Req
 	target, err := dial(ctx, "udp", req.DestAddr.Address())
 	if err != nil {
 		msg := err.Error()
-		resp := hostUnreachable
+		resp := RepHostUnreachable
 		if strings.Contains(msg, "refused") {
-			resp = connectionRefused
+			resp = RepConnectionRefused
 		} else if strings.Contains(msg, "network is unreachable") {
-			resp = networkUnreachable
+			resp = RepNetworkUnreachable
 		}
 		if err := SendReply(writer, req.Header, resp); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
@@ -204,7 +204,7 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, req *Req
 
 	targetUDP, ok := target.(*net.UDPConn)
 	if !ok {
-		if err := SendReply(writer, req.Header, serverFailure); err != nil {
+		if err := SendReply(writer, req.Header, RepServerFailure); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
 		}
 		return fmt.Errorf("dial udp invalid")
@@ -212,7 +212,7 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, req *Req
 
 	bindLn, err := net.ListenUDP("udp", nil)
 	if err != nil {
-		if err := SendReply(writer, req.Header, serverFailure); err != nil {
+		if err := SendReply(writer, req.Header, RepServerFailure); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
 		}
 		return fmt.Errorf("listen udp failed, %v", err)
@@ -221,7 +221,7 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, req *Req
 
 	s.logger.Errorf("target addr %v, listen addr: %s", targetUDP.RemoteAddr(), bindLn.LocalAddr())
 	// send BND.ADDR and BND.PORT, client must
-	if err = SendReply(writer, req.Header, successReply, bindLn.LocalAddr()); err != nil {
+	if err = SendReply(writer, req.Header, RepSuccess, bindLn.LocalAddr()); err != nil {
 		return fmt.Errorf("failed to send reply, %v", err)
 	}
 
