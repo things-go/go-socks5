@@ -149,7 +149,7 @@ func (s *Server) ServeConn(conn net.Conn) (err error) {
 	if request.Header.Version == VersionSocks5 {
 		request.AuthContext = authContext
 	}
-
+	request.LocalAddr = conn.LocalAddr()
 	request.RemoteAddr = conn.RemoteAddr()
 	// Process the client request
 	if err := s.handleRequest(conn, request); err != nil {
