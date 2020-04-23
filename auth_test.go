@@ -49,13 +49,22 @@ func TestPasswordAuth_Valid(t *testing.T) {
 		t.Fatal("Invalid Context Method")
 	}
 
-	val, ok := ctx.Payload["Username"]
+	val, ok := ctx.Payload["username"]
 	if !ok {
-		t.Fatal("Missing key Username in auth context's payload")
+		t.Fatal("Missing key username in auth context's payload")
 	}
 
 	if val != "foo" {
-		t.Fatal("Invalid Username in auth context's payload")
+		t.Fatal("Invalid username in auth context's payload")
+	}
+
+	val, ok = ctx.Payload["password"]
+	if !ok {
+		t.Fatal("Missing key password in auth context's payload")
+	}
+
+	if val != "bar" {
+		t.Fatal("Invalid username in auth context's payload")
 	}
 
 	out := resp.Bytes()

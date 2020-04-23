@@ -18,8 +18,8 @@ const (
 
 // auth error defined
 var (
-	ErrUserAuthFailed  = fmt.Errorf("User authentication failed")
-	ErrNoSupportedAuth = fmt.Errorf("No supported authentication mechanism")
+	ErrUserAuthFailed  = fmt.Errorf("user authentication failed")
+	ErrNoSupportedAuth = fmt.Errorf("no supported authentication mechanism")
 )
 
 // AuthContext A Request encapsulates authentication state provided
@@ -29,7 +29,7 @@ type AuthContext struct {
 	Method uint8
 	// Payload provided during negotiation.
 	// Keys depend on the used auth method.
-	// For UserPassauth contains Username
+	// For UserPassauth contains username/password
 	Payload map[string]string
 }
 
@@ -50,7 +50,7 @@ func (a NoAuthAuthenticator) GetCode() uint8 {
 // Authenticate implement interface Authenticator
 func (a NoAuthAuthenticator) Authenticate(_ io.Reader, writer io.Writer, _ string) (*AuthContext, error) {
 	_, err := writer.Write([]byte{VersionSocks5, MethodNoAuth})
-	return &AuthContext{MethodNoAuth, nil}, err
+	return &AuthContext{MethodNoAuth, make(map[string]string)}, err
 }
 
 // UserPassAuthenticator is used to handle username/password based
@@ -79,7 +79,7 @@ func (a UserPassAuthenticator) Authenticate(reader io.Reader, writer io.Writer, 
 
 	// Ensure we are compatible
 	if header[0] != UserPassAuthVersion {
-		return nil, fmt.Errorf("Unsupported auth version: %v", header[0])
+		return nil, fmt.Errorf("unsupported auth version: %v", header[0])
 	}
 
 	// Get the user name
@@ -114,7 +114,7 @@ func (a UserPassAuthenticator) Authenticate(reader io.Reader, writer io.Writer, 
 	}
 
 	// Done
-	return &AuthContext{MethodUserPassAuth, map[string]string{"Username": string(user)}}, nil
+	return &AuthContext{MethodUserPassAuth, map[string]string{"username": string(user), "password": string(pass)}}, nil
 }
 
 // authenticate is used to handle connection authentication

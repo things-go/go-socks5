@@ -23,13 +23,15 @@ type Request struct {
 	Header
 	// AuthContext provided during negotiation
 	AuthContext *AuthContext
-	// AddrSpec of the the network that sent the request
-	RemoteAddr *AddrSpec
-	// AddrSpec of the actual destination (might be affected by rewrite)
+	// LocalAddr of the the network server listen
+	LocalAddr net.Addr
+	// RemoteAddr of the the network that sent the request
+	RemoteAddr net.Addr
+	// DestAddr of the actual destination (might be affected by rewrite)
 	DestAddr *AddrSpec
 	// Reader connect of request
 	Reader io.Reader
-	// AddrSpec of the desired destination
+	// RawDestAddr of the desired destination
 	RawDestAddr *AddrSpec
 }
 

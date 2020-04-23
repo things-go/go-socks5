@@ -149,9 +149,8 @@ func (s *Server) ServeConn(conn net.Conn) (err error) {
 	if request.Header.Version == VersionSocks5 {
 		request.AuthContext = authContext
 	}
-	if client, ok := conn.RemoteAddr().(*net.TCPAddr); ok {
-		request.RemoteAddr = &AddrSpec{IP: client.IP, Port: client.Port}
-	}
+
+	request.RemoteAddr = conn.RemoteAddr()
 	// Process the client request
 	if err := s.handleRequest(conn, request); err != nil {
 		err = fmt.Errorf("failed to handle request, %v", err)
