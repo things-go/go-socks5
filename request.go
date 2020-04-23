@@ -286,20 +286,7 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, req *Req
 						}
 						tmpBufPool := s.bufferPool.Get()
 						proBuf := tmpBufPool
-						proBuf = append(proBuf, []byte{byte(pkb.RSV << 8), byte(pkb.RSV), pkb.Frag}...)
-						hi, lo := breakPort(pkb.DstAddr.Port)
-						switch pkb.ATYP {
-						case ATYPIPv4:
-							proBuf = append(proBuf, ATYPIPv4)
-							proBuf = append(proBuf, pkb.DstAddr.IP...)
-						case ATYPIPV6:
-							proBuf = append(proBuf, ATYPIPV6)
-							proBuf = append(proBuf, pkb.DstAddr.IP...)
-						case ATYPDomain:
-							proBuf = append(proBuf, ATYPDomain)
-							proBuf = append(proBuf, []byte(pkb.DstAddr.FQDN)...)
-						}
-						proBuf = append(proBuf, hi, lo)
+						proBuf = append(proBuf, pkb.Header()...)
 						proBuf = append(proBuf, pkb.Data...)
 						if _, err := bindLn.WriteTo(proBuf, srcAddr); err != nil {
 							s.bufferPool.Put(tmpBufPool)

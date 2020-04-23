@@ -137,6 +137,7 @@ func TestSOCKS5_Associate(t *testing.T) {
 			if err != nil {
 				return
 			}
+
 			if !bytes.Equal(buf[:n], []byte("ping")) {
 				t.Fatalf("bad: %v", buf)
 			}
