@@ -252,45 +252,12 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, req *Req
 				return
 			}
 
-			if n <= 4+net.IPv4len+2 { // no data
+			pk := NewEmptyPacket()
+			if err := pk.Parses(buf[:n]); err != nil {
 				continue
 			}
-			// ignore RSV,FRAG
-			addrType := buf[3]
-			addrLen := 0
-			headLen := 0
-			var addrSpc AddrSpec
-			if addrType == ATYPIPv4 {
-				headLen = 4 + net.IPv4len + 2
-				addrLen = net.IPv4len
-				addrSpc.IP = make(net.IP, net.IPv4len)
-				copy(addrSpc.IP, buf[4:4+net.IPv4len])
-				addrSpc.Port = buildPort(buf[4+net.IPv4len], buf[4+net.IPv4len+1])
-			} else if addrType == ATYPIPV6 {
-				headLen = 4 + net.IPv6len + 2
-				if n <= headLen {
-					continue
-				}
-				addrLen = net.IPv6len
-				addrSpc.IP = make(net.IP, net.IPv6len)
-				copy(addrSpc.IP, buf[4:4+net.IPv6len])
-				addrSpc.Port = buildPort(buf[4+net.IPv6len], buf[4+net.IPv6len+1])
-			} else if addrType == ATYPDomain {
-				addrLen = int(buf[4])
-				headLen = 4 + 1 + addrLen + 2
-				if n <= headLen {
-					continue
-				}
-				str := make([]byte, addrLen)
-				copy(str, buf[5:5+addrLen])
-				addrSpc.FQDN = string(str)
-				addrSpc.Port = buildPort(buf[5+addrLen], buf[5+addrLen+1])
-			} else {
-				continue
-			}
-
 			// 把消息写给remote sever
-			if _, err := targetUDP.Write(buf[headLen:n]); err != nil {
+			if _, err := targetUDP.Write(pk.Data); err != nil {
 				s.logger.Errorf("write data to remote %s failed, %v", targetUDP.RemoteAddr(), err)
 				return
 			}
@@ -313,22 +280,27 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, req *Req
 							return
 						}
 
-						tmpBufPool := s.bufferPool.Get()
-						proBuf := tmpBufPool
-						rAddr, _ := net.ResolveUDPAddr("udp", remote.String())
-						hi, lo := breakPort(rAddr.Port)
-						if rAddr.IP.To4() != nil {
-							proBuf = append(proBuf, []byte{0, 0, 0, ATYPIPv4}...)
-							proBuf = append(proBuf, rAddr.IP.To4()...)
-							proBuf = append(proBuf, hi, lo)
-						} else if rAddr.IP.To16() != nil {
-							proBuf = append(proBuf, []byte{0, 0, 0, ATYPIPV6}...)
-							proBuf = append(proBuf, rAddr.IP.To16()...)
-							proBuf = append(proBuf, hi, lo)
-						} else { // should never happen
+						pkb, err := NewPacket(remote.String(), buf[:n])
+						if err != nil {
 							continue
 						}
-						proBuf = append(proBuf, buf[:n]...)
+						tmpBufPool := s.bufferPool.Get()
+						proBuf := tmpBufPool
+						proBuf = append(proBuf, []byte{byte(pkb.RSV << 8), byte(pkb.RSV), pkb.Frag}...)
+						hi, lo := breakPort(pkb.DstAddr.Port)
+						switch pkb.ATYP {
+						case ATYPIPv4:
+							proBuf = append(proBuf, ATYPIPv4)
+							proBuf = append(proBuf, pkb.DstAddr.IP...)
+						case ATYPIPV6:
+							proBuf = append(proBuf, ATYPIPV6)
+							proBuf = append(proBuf, pkb.DstAddr.IP...)
+						case ATYPDomain:
+							proBuf = append(proBuf, ATYPDomain)
+							proBuf = append(proBuf, []byte(pkb.DstAddr.FQDN)...)
+						}
+						proBuf = append(proBuf, hi, lo)
+						proBuf = append(proBuf, pkb.Data...)
 						if _, err := bindLn.WriteTo(proBuf, srcAddr); err != nil {
 							s.bufferPool.Put(tmpBufPool)
 							s.logger.Errorf("write data to client %s failed, %v", bindLn.LocalAddr(), err)
