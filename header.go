@@ -53,20 +53,24 @@ type AddrSpec struct {
 	Port int
 }
 
-func (a *AddrSpec) String() string {
-	if a.FQDN != "" {
-		return fmt.Sprintf("%s (%s):%d", a.FQDN, a.IP, a.Port)
-	}
-	return fmt.Sprintf("%s:%d", a.IP, a.Port)
-}
-
 // Address returns a string suitable to dial; prefer returning IP-based
 // address, fallback to FQDN
-func (a AddrSpec) Address() string {
+func (a *AddrSpec) String() string {
 	if 0 != len(a.IP) {
 		return net.JoinHostPort(a.IP.String(), strconv.Itoa(a.Port))
 	}
 	return net.JoinHostPort(a.FQDN, strconv.Itoa(a.Port))
+}
+
+// Address returns a string which may be specified
+// if IPv4,IPv6 will return ip:port
+// if FQDN will return domain ip:port
+// note: do not used to dial
+func (a AddrSpec) Address() string {
+	if a.FQDN != "" {
+		return fmt.Sprintf("%s (%s):%d", a.FQDN, a.IP, a.Port)
+	}
+	return fmt.Sprintf("%s:%d", a.IP, a.Port)
 }
 
 // Header represents the SOCKS5/SOCKS4 header, it contains everything that is not payload

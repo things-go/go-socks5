@@ -132,7 +132,7 @@ func (s *Server) handleConnect(ctx context.Context, writer io.Writer, req *Reque
 			return net.Dial(net_, addr)
 		}
 	}
-	target, err := dial(ctx, "tcp", req.DestAddr.Address())
+	target, err := dial(ctx, "tcp", req.DestAddr.String())
 	if err != nil {
 		msg := err.Error()
 		resp := RepHostUnreachable
@@ -188,7 +188,7 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, req *Req
 			return net.Dial(net_, addr)
 		}
 	}
-	target, err := dial(ctx, "udp", req.DestAddr.Address())
+	target, err := dial(ctx, "udp", req.DestAddr.String())
 	if err != nil {
 		msg := err.Error()
 		resp := RepHostUnreachable
