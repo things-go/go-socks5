@@ -248,12 +248,15 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, req *Req
 			buf := bufPool[:cap(bufPool)]
 			n, srcAddr, err := bindLn.ReadFrom(buf)
 			if err != nil {
-				s.logger.Errorf("read data from bind listen address %s failed, %v", bindLn.LocalAddr(), err)
-				return
+				if strings.Contains(err.Error(), "use of closed network connection") {
+					s.logger.Errorf("read data from bind listen address %s failed, %v", bindLn.LocalAddr(), err)
+					return
+				}
+				continue
 			}
 
 			pk := NewEmptyPacket()
-			if err := pk.Parses(buf[:n]); err != nil {
+			if err := pk.Parse(buf[:n]); err != nil {
 				continue
 			}
 			// 把消息写给remote sever
