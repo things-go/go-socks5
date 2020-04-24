@@ -123,3 +123,7 @@ func (sf *Packet) Header() []byte {
 	bs = append(bs, hi, lo)
 	return bs
 }
+
+func (sf *Packet) Bytes() []byte {
+	return append(sf.Header(), sf.Data...)
+}

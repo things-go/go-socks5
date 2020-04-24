@@ -102,21 +102,21 @@ func WithGPool(pool GPool) Option {
 }
 
 // WithConnectHandle is used to handle a user's connect command
-func WithConnectHandle(h func(ctx context.Context, writer io.Writer, req *Request) error) Option {
+func WithConnectHandle(h func(ctx context.Context, writer io.Writer, request *Request) error) Option {
 	return func(s *Server) {
 		s.userConnectHandle = h
 	}
 }
 
 // WithBindHandle is used to handle a user's bind command
-func WithBindHandle(h func(ctx context.Context, writer io.Writer, req *Request) error) Option {
+func WithBindHandle(h func(ctx context.Context, writer io.Writer, request *Request) error) Option {
 	return func(s *Server) {
 		s.userBindHandle = h
 	}
 }
 
 // WithAssociateHandle is used to handle a user's associate command
-func WithAssociateHandle(h func(ctx context.Context, writer io.Writer, req *Request) error) Option {
+func WithAssociateHandle(h func(ctx context.Context, writer io.Writer, request *Request) error) Option {
 	return func(s *Server) {
 		s.userAssociateHandle = h
 	}

@@ -49,9 +49,9 @@ type Server struct {
 	// goroutine pool
 	gPool GPool
 	// user's handle
-	userConnectHandle   func(ctx context.Context, writer io.Writer, req *Request) error
-	userBindHandle      func(ctx context.Context, writer io.Writer, req *Request) error
-	userAssociateHandle func(ctx context.Context, writer io.Writer, req *Request) error
+	userConnectHandle   func(ctx context.Context, writer io.Writer, request *Request) error
+	userBindHandle      func(ctx context.Context, writer io.Writer, request *Request) error
+	userAssociateHandle func(ctx context.Context, writer io.Writer, request *Request) error
 }
 
 // New creates a new Server and potentially returns an error
