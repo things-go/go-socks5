@@ -154,18 +154,17 @@ func (s *Server) handleConnect(ctx context.Context, writer io.Writer, request *R
 	}
 
 	// Start proxying
-	errCh := make(chan error, 2)
-	s.submit(func() { errCh <- s.Proxy(target, request.Reader) })
-	s.submit(func() { errCh <- s.Proxy(writer, target) })
+	eCh1 := make(chan error, 1)
+	eCh2 := make(chan error, 1)
+
+	s.submit(func() { eCh1 <- s.Proxy(target, request.Reader) })
+	s.submit(func() { eCh2 <- s.Proxy(writer, target) })
 	// Wait
-	for i := 0; i < 2; i++ {
-		e := <-errCh
-		if e != nil {
-			// return from this function closes target (and conn).
-			return e
-		}
+	select {
+	case err = <-eCh1:
+	case err = <-eCh2:
 	}
-	return nil
+	return err
 }
 
 // handleBind is used to handle a connect command
