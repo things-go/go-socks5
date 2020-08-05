@@ -23,8 +23,7 @@ func TestParseHeader(t *testing.T) {
 			args{bytes.NewReader([]byte{VersionSocks5, CommandConnect, 0, ATYPIPv4, 127, 0, 0, 1, 0x1f, 0x90})},
 			Header{
 				VersionSocks5, CommandConnect, 0,
-				AddrSpec{IP: net.IPv4(127, 0, 0, 1), Port: 8080},
-				ATYPIPv4,
+				AddrSpec{IP: net.IPv4(127, 0, 0, 1), Port: 8080, AddrType: ATYPIPv4},
 			},
 			false,
 		},
@@ -33,8 +32,7 @@ func TestParseHeader(t *testing.T) {
 			args{bytes.NewReader([]byte{VersionSocks5, CommandConnect, 0, ATYPIPv6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1f, 0x90})},
 			Header{
 				VersionSocks5, CommandConnect, 0,
-				AddrSpec{IP: net.IPv6zero, Port: 8080},
-				ATYPIPv6,
+				AddrSpec{IP: net.IPv6zero, Port: 8080, AddrType: ATYPIPv6},
 			},
 			false,
 		},
@@ -43,8 +41,7 @@ func TestParseHeader(t *testing.T) {
 			args{bytes.NewReader([]byte{VersionSocks5, CommandConnect, 0, ATYPDomain, 9, 'l', 'o', 'c', 'a', 'l', 'h', 'o', 's', 't', 0x1f, 0x90})},
 			Header{
 				VersionSocks5, CommandConnect, 0,
-				AddrSpec{FQDN: "localhost", Port: 8080},
-				ATYPDomain,
+				AddrSpec{FQDN: "localhost", Port: 8080, AddrType: ATYPDomain},
 			},
 			false,
 		},
@@ -74,8 +71,7 @@ func TestHeader_Bytes(t *testing.T) {
 			"SOCKS5 IPV4",
 			Header{
 				VersionSocks5, CommandConnect, 0,
-				AddrSpec{IP: net.IPv4(127, 0, 0, 1), Port: 8080},
-				ATYPIPv4,
+				AddrSpec{IP: net.IPv4(127, 0, 0, 1), Port: 8080, AddrType: ATYPIPv4},
 			},
 			[]byte{VersionSocks5, CommandConnect, 0, ATYPIPv4, 127, 0, 0, 1, 0x1f, 0x90},
 		},
@@ -83,8 +79,7 @@ func TestHeader_Bytes(t *testing.T) {
 			"SOCKS5 IPV6",
 			Header{
 				VersionSocks5, CommandConnect, 0,
-				AddrSpec{IP: net.IPv6zero, Port: 8080},
-				ATYPIPv6,
+				AddrSpec{IP: net.IPv6zero, Port: 8080, AddrType: ATYPIPv6},
 			},
 			[]byte{VersionSocks5, CommandConnect, 0, ATYPIPv6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1f, 0x90},
 		},
@@ -92,8 +87,7 @@ func TestHeader_Bytes(t *testing.T) {
 			"SOCKS5 FQDN",
 			Header{
 				VersionSocks5, CommandConnect, 0,
-				AddrSpec{FQDN: "localhost", Port: 8080},
-				ATYPDomain,
+				AddrSpec{FQDN: "localhost", Port: 8080, AddrType: ATYPDomain},
 			},
 			[]byte{VersionSocks5, CommandConnect, 0, ATYPDomain, 9, 'l', 'o', 'c', 'a', 'l', 'h', 'o', 's', 't', 0x1f, 0x90},
 		},

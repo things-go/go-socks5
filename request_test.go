@@ -7,8 +7,9 @@ import (
 	"log"
 	"net"
 	"os"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 type MockConn struct {
@@ -26,30 +27,24 @@ func (m *MockConn) RemoteAddr() net.Addr {
 func TestRequest_Connect(t *testing.T) {
 	// Create a local listener
 	l, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(t, err)
+
 	go func() {
 		conn, err := l.Accept()
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		require.NoError(t, err)
 		defer conn.Close()
 
 		buf := make([]byte, 4)
-		if _, err := io.ReadAtLeast(conn, buf, 4); err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		_, err = io.ReadAtLeast(conn, buf, 4)
+		require.NoError(t, err)
+		require.Equal(t, []byte("ping"), buf)
 
-		if !bytes.Equal(buf, []byte("ping")) {
-			t.Fatalf("bad: %v", buf)
-		}
-		_, _ = conn.Write([]byte("pong"))
+		conn.Write([]byte("pong")) // nolint: errcheck
 	}()
 	lAddr := l.Addr().(*net.TCPAddr)
 
 	// Make server
-	s := &Server{
+	proxySrv := &Server{
 		rules:      NewPermitAll(),
 		resolver:   DNSResolver{},
 		logger:     NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags)),
@@ -58,25 +53,22 @@ func TestRequest_Connect(t *testing.T) {
 
 	// Create the connect request
 	buf := bytes.NewBuffer(nil)
-	buf.Write([]byte{5, 1, 0, 1, 127, 0, 0, 1})
+	buf.Write([]byte{5, 1, 0, 1, 127, 0, 0, 1}) // nolint: errcheck
 
 	port := []byte{0, 0}
 	binary.BigEndian.PutUint16(port, uint16(lAddr.Port))
-	buf.Write(port)
+	buf.Write(port) // nolint: errcheck
 
 	// Send a ping
-	buf.Write([]byte("ping"))
+	buf.Write([]byte("ping")) // nolint: errcheck
 
 	// Handle the request
 	resp := &MockConn{}
 	req, err := NewRequest(buf)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := s.handleRequest(resp, req); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	err = proxySrv.handleRequest(resp, req)
+	require.NoError(t, err)
 
 	// Verify response
 	out := resp.buf.Bytes()
@@ -93,34 +85,24 @@ func TestRequest_Connect(t *testing.T) {
 	// Ignore the port for both
 	out[8] = 0
 	out[9] = 0
-
-	if !bytes.Equal(out, expected) {
-		t.Fatalf("bad: %v %v", out, expected)
-	}
+	require.Equal(t, expected, out)
 }
 
 func TestRequest_Connect_RuleFail(t *testing.T) {
 	// Create a local listener
 	l, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(t, err)
+
 	go func() {
 		conn, err := l.Accept()
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		require.NoError(t, err)
 		defer conn.Close()
 
 		buf := make([]byte, 4)
-		if _, err := io.ReadAtLeast(conn, buf, 4); err != nil {
-			t.Fatalf("err: %v", err)
-		}
-
-		if !bytes.Equal(buf, []byte("ping")) {
-			t.Fatalf("bad: %v", buf)
-		}
-		_, _ = conn.Write([]byte("pong"))
+		_, err = io.ReadAtLeast(conn, buf, 4)
+		require.NoError(t, err)
+		require.Equal(t, []byte("ping"), buf)
+		conn.Write([]byte("pong")) // nolint: errcheck
 	}()
 	lAddr := l.Addr().(*net.TCPAddr)
 
@@ -146,13 +128,10 @@ func TestRequest_Connect_RuleFail(t *testing.T) {
 	// Handle the request
 	resp := &MockConn{}
 	req, err := NewRequest(buf)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(t, err)
 
-	if err := s.handleRequest(resp, req); !strings.Contains(err.Error(), "blocked by rules") {
-		t.Fatalf("err: %v", err)
-	}
+	err = s.handleRequest(resp, req)
+	require.Contains(t, err.Error(), "blocked by rules")
 
 	// Verify response
 	out := resp.buf.Bytes()
@@ -164,8 +143,5 @@ func TestRequest_Connect_RuleFail(t *testing.T) {
 		0, 0, 0, 0,
 		0, 0,
 	}
-
-	if !bytes.Equal(out, expected) {
-		t.Fatalf("bad: %v %v", out, expected)
-	}
+	require.Equal(t, expected, out)
 }

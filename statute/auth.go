@@ -5,6 +5,12 @@ import (
 	"io"
 )
 
+// auth error defined
+var (
+	ErrUserAuthFailed  = fmt.Errorf("user authentication failed")
+	ErrNoSupportedAuth = fmt.Errorf("no supported authentication mechanism")
+)
+
 // UserPassRequest is the negotiation user's password request packet
 // The SOCKS handshake user's password request is formed as follows:
 // 	+--------------+------+----------+------+----------+

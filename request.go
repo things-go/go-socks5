@@ -305,7 +305,7 @@ func SendReply(w io.Writer, head statute.Header, resp uint8, bindAddr ...net.Add
 	head.Command = resp
 
 	if len(bindAddr) == 0 {
-		head.AddrType = statute.ATYPIPv4
+		head.Address.AddrType = statute.ATYPIPv4
 		head.Address.IP = []byte{0, 0, 0, 0}
 		head.Address.Port = 0
 	} else {
@@ -322,15 +322,15 @@ func SendReply(w io.Writer, head statute.Header, resp uint8, bindAddr ...net.Add
 		}
 		switch {
 		case addrSpec.FQDN != "":
-			head.AddrType = statute.ATYPDomain
+			head.Address.AddrType = statute.ATYPDomain
 			head.Address.FQDN = addrSpec.FQDN
 			head.Address.Port = addrSpec.Port
 		case addrSpec.IP.To4() != nil:
-			head.AddrType = statute.ATYPIPv4
+			head.Address.AddrType = statute.ATYPIPv4
 			head.Address.IP = addrSpec.IP.To4()
 			head.Address.Port = addrSpec.Port
 		case addrSpec.IP.To16() != nil:
-			head.AddrType = statute.ATYPIPv6
+			head.Address.AddrType = statute.ATYPIPv6
 			head.Address.IP = addrSpec.IP.To16()
 			head.Address.Port = addrSpec.Port
 		default:

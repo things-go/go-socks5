@@ -39,7 +39,7 @@ Below is a simple example of usage
 
 ```go
 // Create a SOCKS5 server
-server := socks5.New()
+server := socks5.NewServer()
 
 // Create SOCKS5 proxy on localhost port 8000
 if err := server.ListenAndServe("tcp", "127.0.0.1:8000"); err != nil {

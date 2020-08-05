@@ -31,8 +31,6 @@ type Header struct {
 	Reserved uint8
 	// Address in socks message
 	Address AddrSpec
-	// private stuff set when Header parsed
-	AddrType uint8
 }
 
 // ParseHeader to header from io.Reader
@@ -54,8 +52,8 @@ func ParseHeader(r io.Reader) (hd Header, err error) {
 		return hd, fmt.Errorf("failed to get header RSV and address type, %v", err)
 	}
 	hd.Reserved = tmp[0]
-	hd.AddrType = tmp[1]
-	switch hd.AddrType {
+	hd.Address.AddrType = tmp[1]
+	switch hd.Address.AddrType {
 	case ATYPDomain:
 		if _, err = io.ReadFull(r, tmp[:1]); err != nil {
 			return hd, fmt.Errorf("failed to get header, %v", err)
@@ -93,10 +91,10 @@ func (h Header) Bytes() (b []byte) {
 	var addr []byte
 
 	length := headerVERLen + headerCMDLen + headerRSVLen + headerATYPLen + headerPORTLen
-	if h.AddrType == ATYPIPv4 {
+	if h.Address.AddrType == ATYPIPv4 {
 		length += net.IPv4len
 		addr = h.Address.IP.To4()
-	} else if h.AddrType == ATYPIPv6 {
+	} else if h.Address.AddrType == ATYPIPv6 {
 		length += net.IPv6len
 		addr = h.Address.IP.To16()
 	} else { //ATYPDomain
@@ -108,8 +106,8 @@ func (h Header) Bytes() (b []byte) {
 	b = append(b, h.Version)
 	b = append(b, h.Command)
 	b = append(b, h.Reserved)
-	b = append(b, h.AddrType)
-	if h.AddrType == ATYPDomain {
+	b = append(b, h.Address.AddrType)
+	if h.Address.AddrType == ATYPDomain {
 		b = append(b, byte(len(h.Address.FQDN)))
 	}
 	b = append(b, addr...)

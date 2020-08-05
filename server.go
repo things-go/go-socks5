@@ -56,8 +56,8 @@ type Server struct {
 	userAssociateHandle func(ctx context.Context, writer io.Writer, request *Request) error
 }
 
-// New creates a new Server and potentially returns an error
-func New(opts ...Option) *Server {
+// NewServer creates a new Server and potentially returns an error
+func NewServer(opts ...Option) *Server {
 	server := &Server{
 		authMethods:       make(map[uint8]Authenticator),
 		authCustomMethods: []Authenticator{&NoAuthAuthenticator{}},

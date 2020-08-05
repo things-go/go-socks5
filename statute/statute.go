@@ -1,9 +1,5 @@
 package statute
 
-import (
-	"fmt"
-)
-
 // auth defined
 const (
 	MethodNoAuth       = byte(0x00)
@@ -43,10 +39,4 @@ const (
 	RepCommandNotSupported
 	RepAddrTypeNotSupported
 	// 0x09 - 0xff unassigned
-)
-
-// auth error defined
-var (
-	ErrUserAuthFailed  = fmt.Errorf("user authentication failed")
-	ErrNoSupportedAuth = fmt.Errorf("no supported authentication mechanism")
 )

@@ -12,6 +12,8 @@ type AddrSpec struct {
 	FQDN string
 	IP   net.IP
 	Port int
+	// private stuff set when Header parsed
+	AddrType uint8
 }
 
 // Address returns a string suitable to dial; prefer returning IP-based
@@ -44,10 +46,13 @@ func ParseAddrSpec(address string) (a AddrSpec, err error) {
 	}
 	ip := net.ParseIP(host)
 	if ip4 := ip.To4(); ip4 != nil {
+		a.AddrType = ATYPIPv4
 		a.IP = ip
 	} else if ip6 := ip.To16(); ip6 != nil {
+		a.AddrType = ATYPIPv6
 		a.IP = ip
 	} else {
+		a.AddrType = ATYPDomain
 		a.FQDN = host
 	}
 	a.Port, err = strconv.Atoi(port)
