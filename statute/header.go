@@ -1,39 +1,10 @@
-package socks5
+package statute
 
 import (
 	"fmt"
 	"io"
 	"net"
 	"strconv"
-)
-
-// socks const defined
-const (
-	// protocol version
-	VersionSocks4 = uint8(4)
-	VersionSocks5 = uint8(5)
-	// request command
-	CommandConnect   = uint8(1)
-	CommandBind      = uint8(2)
-	CommandAssociate = uint8(3)
-	// address type
-	ATYPIPv4   = uint8(1)
-	ATYPDomain = uint8(3)
-	ATYPIPv6   = uint8(4)
-)
-
-// reply status
-const (
-	RepSuccess uint8 = iota
-	RepServerFailure
-	RepRuleFailure
-	RepNetworkUnreachable
-	RepHostUnreachable
-	RepConnectionRefused
-	RepTTLExpired
-	RepCommandNotSupported
-	RepAddrTypeNotSupported
-	// 0x09 - 0xff unassigned
 )
 
 // Header represents the SOCKS4/SOCKS5 head len defined
@@ -73,6 +44,26 @@ func (a AddrSpec) Address() string {
 	return fmt.Sprintf("%s:%d", a.IP, a.Port)
 }
 
+// ParseAddrSpec parse address to the AddrSpec address
+func ParseAddrSpec(address string) (a AddrSpec, err error) {
+	var host, port string
+
+	host, port, err = net.SplitHostPort(address)
+	if err != nil {
+		return
+	}
+	ip := net.ParseIP(host)
+	if ip4 := ip.To4(); ip4 != nil {
+		a.IP = ip4
+	} else if ip6 := ip.To16(); ip6 != nil {
+		a.IP = ip6
+	} else {
+		a.FQDN = host
+	}
+	a.Port, err = strconv.Atoi(port)
+	return
+}
+
 // Header represents the SOCKS4/SOCKS5 header, it contains everything that is not payload
 // The SOCKS4 request/response is formed as follows:
 //	+-----+-----+------+------+
@@ -96,7 +87,7 @@ type Header struct {
 	// Address in socks message
 	Address AddrSpec
 	// private stuff set when Header parsed
-	addrType uint8
+	AddrType uint8
 }
 
 // ParseHeader to header from io.Reader
@@ -123,8 +114,8 @@ func ParseHeader(r io.Reader) (hd Header, err error) {
 			return hd, fmt.Errorf("failed to get header RSV and address type, %v", err)
 		}
 		hd.Reserved = tmp[0]
-		hd.addrType = tmp[1]
-		switch hd.addrType {
+		hd.AddrType = tmp[1]
+		switch hd.AddrType {
 		case ATYPDomain:
 			if _, err = io.ReadFull(r, tmp[:1]); err != nil {
 				return hd, fmt.Errorf("failed to get header, %v", err)
@@ -135,23 +126,23 @@ func ParseHeader(r io.Reader) (hd Header, err error) {
 				return hd, fmt.Errorf("failed to get header, %v", err)
 			}
 			hd.Address.FQDN = string(addr[:domainLen])
-			hd.Address.Port = buildPort(addr[domainLen], addr[domainLen+1])
+			hd.Address.Port = BuildPort(addr[domainLen], addr[domainLen+1])
 		case ATYPIPv4:
 			addr := make([]byte, net.IPv4len+2)
 			if _, err = io.ReadFull(r, addr); err != nil {
 				return hd, fmt.Errorf("failed to get header, %v", err)
 			}
 			hd.Address.IP = net.IPv4(addr[0], addr[1], addr[2], addr[3])
-			hd.Address.Port = buildPort(addr[net.IPv4len], addr[net.IPv4len+1])
+			hd.Address.Port = BuildPort(addr[net.IPv4len], addr[net.IPv4len+1])
 		case ATYPIPv6:
 			addr := make([]byte, net.IPv6len+2)
 			if _, err = io.ReadFull(r, addr); err != nil {
 				return hd, fmt.Errorf("failed to get header, %v", err)
 			}
 			hd.Address.IP = addr[:net.IPv6len]
-			hd.Address.Port = buildPort(addr[net.IPv6len], addr[net.IPv6len+1])
+			hd.Address.Port = BuildPort(addr[net.IPv6len], addr[net.IPv6len+1])
 		default:
-			return hd, errUnrecognizedAddrType
+			return hd, ErrUnrecognizedAddrType
 		}
 	} else { // Socks4
 		// read port and ipv4 ip
@@ -159,7 +150,7 @@ func ParseHeader(r io.Reader) (hd Header, err error) {
 		if _, err = io.ReadFull(r, tmp); err != nil {
 			return hd, fmt.Errorf("failed to get socks4 header port and ip, %v", err)
 		}
-		hd.Address.Port = buildPort(tmp[0], tmp[1])
+		hd.Address.Port = BuildPort(tmp[0], tmp[1])
 		hd.Address.IP = net.IPv4(tmp[2], tmp[3], tmp[4], tmp[5])
 	}
 	return hd, nil
@@ -167,7 +158,7 @@ func ParseHeader(r io.Reader) (hd Header, err error) {
 
 // Bytes returns a slice of header
 func (h Header) Bytes() (b []byte) {
-	hiPort, loPort := breakPort(h.Address.Port)
+	hiPort, loPort := BreakPort(h.Address.Port)
 	if h.Version == VersionSocks4 {
 		b = make([]byte, 0, headerVERLen+headerCMDLen+headerPORTLen+net.IPv4len)
 		b = append(b, h.Version)
@@ -176,24 +167,24 @@ func (h Header) Bytes() (b []byte) {
 		b = append(b, h.Address.IP.To4()...)
 	} else if h.Version == VersionSocks5 {
 		length := headerVERLen + headerCMDLen + headerRSVLen + headerATYPLen + headerPORTLen
-		if h.addrType == ATYPDomain {
+		if h.AddrType == ATYPDomain {
 			length += 1 + len(h.Address.FQDN)
-		} else if h.addrType == ATYPIPv4 {
+		} else if h.AddrType == ATYPIPv4 {
 			length += net.IPv4len
-		} else if h.addrType == ATYPIPv6 {
+		} else if h.AddrType == ATYPIPv6 {
 			length += net.IPv6len
 		}
 		b = make([]byte, 0, length)
 		b = append(b, h.Version)
 		b = append(b, h.Command)
 		b = append(b, h.Reserved)
-		b = append(b, h.addrType)
-		if h.addrType == ATYPDomain {
+		b = append(b, h.AddrType)
+		if h.AddrType == ATYPDomain {
 			b = append(b, byte(len(h.Address.FQDN)))
 			b = append(b, []byte(h.Address.FQDN)...)
-		} else if h.addrType == ATYPIPv4 {
+		} else if h.AddrType == ATYPIPv4 {
 			b = append(b, h.Address.IP.To4()...)
-		} else if h.addrType == ATYPIPv6 {
+		} else if h.AddrType == ATYPIPv6 {
 			b = append(b, h.Address.IP.To16()...)
 		}
 		b = append(b, hiPort, loPort)
@@ -201,5 +192,5 @@ func (h Header) Bytes() (b []byte) {
 	return b
 }
 
-func buildPort(hi, lo byte) int        { return (int(hi) << 8) | int(lo) }
-func breakPort(port int) (hi, lo byte) { return byte(port >> 8), byte(port) }
+func BuildPort(hi, lo byte) int        { return (int(hi) << 8) | int(lo) }
+func BreakPort(port int) (hi, lo byte) { return byte(port >> 8), byte(port) }

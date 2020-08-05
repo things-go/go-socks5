@@ -1,4 +1,4 @@
-package socks5
+package statute
 
 import (
 	"errors"
@@ -78,7 +78,7 @@ func (sf *Packet) Parse(b []byte) error {
 	case ATYPIPv4:
 		headLen += net.IPv4len + 2
 		sf.DstAddr.IP = net.IPv4(b[4], b[5], b[6], b[7])
-		sf.DstAddr.Port = buildPort(b[4+net.IPv4len], b[4+net.IPv4len+1])
+		sf.DstAddr.Port = BuildPort(b[4+net.IPv4len], b[4+net.IPv4len+1])
 	case ATYPIPv6:
 		headLen += net.IPv6len + 2
 		if len(b) <= headLen {
@@ -86,7 +86,7 @@ func (sf *Packet) Parse(b []byte) error {
 		}
 
 		sf.DstAddr.IP = net.IP{b[4], b[5], b[6], b[7], b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15], b[16], b[17], b[18], b[19]}
-		sf.DstAddr.Port = buildPort(b[4+net.IPv6len], b[4+net.IPv6len+1])
+		sf.DstAddr.Port = BuildPort(b[4+net.IPv6len], b[4+net.IPv6len+1])
 	case ATYPDomain:
 		addrLen := int(b[4])
 		headLen += 1 + addrLen + 2
@@ -96,9 +96,9 @@ func (sf *Packet) Parse(b []byte) error {
 		str := make([]byte, addrLen)
 		copy(str, b[5:5+addrLen])
 		sf.DstAddr.FQDN = string(str)
-		sf.DstAddr.Port = buildPort(b[5+addrLen], b[5+addrLen+1])
+		sf.DstAddr.Port = BuildPort(b[5+addrLen], b[5+addrLen+1])
 	default:
-		return errUnrecognizedAddrType
+		return ErrUnrecognizedAddrType
 	}
 	sf.Data = b[headLen:]
 	return nil
@@ -119,7 +119,7 @@ func (sf *Packet) Header() []byte {
 		bs = append(bs, ATYPDomain)
 		bs = append(bs, []byte(sf.DstAddr.FQDN)...)
 	}
-	hi, lo := breakPort(sf.DstAddr.Port)
+	hi, lo := BreakPort(sf.DstAddr.Port)
 	bs = append(bs, hi, lo)
 	return bs
 }

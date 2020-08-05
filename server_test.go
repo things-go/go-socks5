@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"golang.org/x/net/proxy"
+
+	"github.com/thinkgos/go-socks5/statute"
 )
 
 func TestSOCKS5_Connect(t *testing.T) {
@@ -62,18 +64,18 @@ func TestSOCKS5_Connect(t *testing.T) {
 
 	// Connect, auth and connec to local
 	req := new(bytes.Buffer)
-	req.Write([]byte{VersionSocks5, 2, MethodNoAuth, MethodUserPassAuth})
-	req.Write([]byte{UserPassAuthVersion, 3, 'f', 'o', 'o', 3, 'b', 'a', 'r'})
-	reqHead := Header{
-		Version:  VersionSocks5,
-		Command:  CommandConnect,
+	req.Write([]byte{statute.VersionSocks5, 2, statute.MethodNoAuth, statute.MethodUserPassAuth})
+	req.Write([]byte{statute.UserPassAuthVersion, 3, 'f', 'o', 'o', 3, 'b', 'a', 'r'})
+	reqHead := statute.Header{
+		Version:  statute.VersionSocks5,
+		Command:  statute.CommandConnect,
 		Reserved: 0,
-		Address: AddrSpec{
+		Address: statute.AddrSpec{
 			"",
 			net.ParseIP("127.0.0.1"),
 			lAddr.Port,
 		},
-		addrType: ATYPIPv4,
+		AddrType: statute.ATYPIPv4,
 	}
 	req.Write(reqHead.Bytes())
 	// Send a ping
@@ -84,19 +86,19 @@ func TestSOCKS5_Connect(t *testing.T) {
 
 	// Verify response
 	expected := []byte{
-		VersionSocks5, MethodUserPassAuth, // use user password auth
-		UserPassAuthVersion, AuthSuccess, // response auth success
+		statute.VersionSocks5, statute.MethodUserPassAuth, // use user password auth
+		statute.UserPassAuthVersion, statute.AuthSuccess, // response auth success
 	}
-	rspHead := Header{
-		Version:  VersionSocks5,
-		Command:  RepSuccess,
+	rspHead := statute.Header{
+		Version:  statute.VersionSocks5,
+		Command:  statute.RepSuccess,
 		Reserved: 0,
-		Address: AddrSpec{
+		Address: statute.AddrSpec{
 			"",
 			net.ParseIP("127.0.0.1"),
 			0, // Ignore the port
 		},
-		addrType: ATYPIPv4,
+		AddrType: statute.ATYPIPv4,
 	}
 	expected = append(expected, rspHead.Bytes()...)
 	expected = append(expected, []byte("pong")...)
@@ -107,7 +109,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	t.Logf("proxy bind port: %d", buildPort(out[12], out[13]))
+	t.Logf("proxy bind port: %d", statute.BuildPort(out[12], out[13]))
 
 	// Ignore the port
 	out[12] = 0
@@ -167,18 +169,18 @@ func TestSOCKS5_Associate(t *testing.T) {
 
 	// Connect, auth and connec to local
 	req := new(bytes.Buffer)
-	req.Write([]byte{VersionSocks5, 2, MethodNoAuth, MethodUserPassAuth})
-	req.Write([]byte{UserPassAuthVersion, 3, 'f', 'o', 'o', 3, 'b', 'a', 'r'})
-	reqHead := Header{
-		Version:  VersionSocks5,
-		Command:  CommandAssociate,
+	req.Write([]byte{statute.VersionSocks5, 2, statute.MethodNoAuth, statute.MethodUserPassAuth})
+	req.Write([]byte{statute.UserPassAuthVersion, 3, 'f', 'o', 'o', 3, 'b', 'a', 'r'})
+	reqHead := statute.Header{
+		Version:  statute.VersionSocks5,
+		Command:  statute.CommandAssociate,
 		Reserved: 0,
-		Address: AddrSpec{
+		Address: statute.AddrSpec{
 			"",
 			locIP,
 			lAddr.Port,
 		},
-		addrType: ATYPIPv4,
+		AddrType: statute.ATYPIPv4,
 	}
 	req.Write(reqHead.Bytes())
 	// Send all the bytes
@@ -186,8 +188,8 @@ func TestSOCKS5_Associate(t *testing.T) {
 
 	// Verify response
 	expected := []byte{
-		VersionSocks5, MethodUserPassAuth, // use user password auth
-		UserPassAuthVersion, AuthSuccess, // response auth success
+		statute.VersionSocks5, statute.MethodUserPassAuth, // use user password auth
+		statute.UserPassAuthVersion, statute.AuthSuccess, // response auth success
 	}
 
 	out := make([]byte, len(expected))
@@ -200,11 +202,11 @@ func TestSOCKS5_Associate(t *testing.T) {
 		t.Fatalf("bad: %v", out)
 	}
 
-	rspHead, err := ParseHeader(conn)
+	rspHead, err := statute.ParseHeader(conn)
 	if err != nil {
 		t.Fatalf("bad response header: %v", err)
 	}
-	if rspHead.Version != VersionSocks5 && rspHead.Command != RepSuccess {
+	if rspHead.Version != statute.VersionSocks5 && rspHead.Command != statute.RepSuccess {
 		t.Fatalf("parse success but bad header: %v", rspHead)
 	}
 
@@ -218,7 +220,7 @@ func TestSOCKS5_Associate(t *testing.T) {
 		t.Fatalf("bad dial: %v", err)
 	}
 	// Send a ping
-	_, _ = udpConn.Write(append([]byte{0, 0, 0, ATYPIPv4, 0, 0, 0, 0, 0, 0}, []byte("ping")...))
+	_, _ = udpConn.Write(append([]byte{0, 0, 0, statute.ATYPIPv4, 0, 0, 0, 0, 0, 0}, []byte("ping")...))
 	response := make([]byte, 1024)
 	n, _, err := udpConn.ReadFrom(response)
 	if err != nil || !bytes.Equal(response[n-4:n], []byte("pong")) {

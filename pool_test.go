@@ -3,16 +3,20 @@ package socks5
 import (
 	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestPool(t *testing.T) {
 	p := newPool(2048)
 	b := p.Get()
 	bs := b[0:cap(b)]
-	if len(bs) != cap(b) {
-		t.Fatalf("invalid buffer")
-	}
+	require.Equal(t, cap(b), len(bs))
 	p.Put(b)
+	p.Get()
+	p.Put(b)
+	p.Put(make([]byte, 2048))
+	require.Panics(t, func() { p.Put([]byte{}) })
 }
 
 func BenchmarkSyncPool(b *testing.B) {

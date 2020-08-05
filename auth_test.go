@@ -3,11 +3,13 @@ package socks5
 import (
 	"bytes"
 	"testing"
+
+	"github.com/thinkgos/go-socks5/statute"
 )
 
 func TestNoAuth(t *testing.T) {
 	req := bytes.NewBuffer(nil)
-	req.Write([]byte{1, MethodNoAuth})
+	req.Write([]byte{1, statute.MethodNoAuth})
 	var resp bytes.Buffer
 
 	s := New()
@@ -16,19 +18,19 @@ func TestNoAuth(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if ctx.Method != MethodNoAuth {
+	if ctx.Method != statute.MethodNoAuth {
 		t.Fatal("Invalid Context Method")
 	}
 
 	out := resp.Bytes()
-	if !bytes.Equal(out, []byte{VersionSocks5, MethodNoAuth}) {
+	if !bytes.Equal(out, []byte{statute.VersionSocks5, statute.MethodNoAuth}) {
 		t.Fatalf("bad: %v", out)
 	}
 }
 
 func TestPasswordAuth_Valid(t *testing.T) {
 	req := bytes.NewBuffer(nil)
-	req.Write([]byte{2, MethodNoAuth, MethodUserPassAuth})
+	req.Write([]byte{2, statute.MethodNoAuth, statute.MethodUserPassAuth})
 	req.Write([]byte{1, 3, 'f', 'o', 'o', 3, 'b', 'a', 'r'})
 	var resp bytes.Buffer
 
@@ -45,7 +47,7 @@ func TestPasswordAuth_Valid(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if ctx.Method != MethodUserPassAuth {
+	if ctx.Method != statute.MethodUserPassAuth {
 		t.Fatal("Invalid Context Method")
 	}
 
@@ -68,14 +70,14 @@ func TestPasswordAuth_Valid(t *testing.T) {
 	}
 
 	out := resp.Bytes()
-	if !bytes.Equal(out, []byte{VersionSocks5, MethodUserPassAuth, 1, AuthSuccess}) {
+	if !bytes.Equal(out, []byte{statute.VersionSocks5, statute.MethodUserPassAuth, 1, statute.AuthSuccess}) {
 		t.Fatalf("bad: %v", out)
 	}
 }
 
 func TestPasswordAuth_Invalid(t *testing.T) {
 	req := bytes.NewBuffer(nil)
-	req.Write([]byte{2, MethodNoAuth, MethodUserPassAuth})
+	req.Write([]byte{2, statute.MethodNoAuth, statute.MethodUserPassAuth})
 	req.Write([]byte{1, 3, 'f', 'o', 'o', 3, 'b', 'a', 'z'})
 	var resp bytes.Buffer
 
@@ -86,7 +88,7 @@ func TestPasswordAuth_Invalid(t *testing.T) {
 	s := New(WithAuthMethods([]Authenticator{cator}))
 
 	ctx, err := s.authenticate(&resp, req, "")
-	if err != ErrUserAuthFailed {
+	if err != statute.ErrUserAuthFailed {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -95,14 +97,14 @@ func TestPasswordAuth_Invalid(t *testing.T) {
 	}
 
 	out := resp.Bytes()
-	if !bytes.Equal(out, []byte{VersionSocks5, MethodUserPassAuth, 1, AuthFailure}) {
+	if !bytes.Equal(out, []byte{statute.VersionSocks5, statute.MethodUserPassAuth, 1, statute.AuthFailure}) {
 		t.Fatalf("bad: %v", out)
 	}
 }
 
 func TestNoSupportedAuth(t *testing.T) {
 	req := bytes.NewBuffer(nil)
-	req.Write([]byte{1, MethodNoAuth})
+	req.Write([]byte{1, statute.MethodNoAuth})
 	var resp bytes.Buffer
 
 	cred := StaticCredentials{
@@ -113,7 +115,7 @@ func TestNoSupportedAuth(t *testing.T) {
 	s := New(WithAuthMethods([]Authenticator{cator}))
 
 	ctx, err := s.authenticate(&resp, req, "")
-	if err != ErrNoSupportedAuth {
+	if err != statute.ErrNoSupportedAuth {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -122,7 +124,7 @@ func TestNoSupportedAuth(t *testing.T) {
 	}
 
 	out := resp.Bytes()
-	if !bytes.Equal(out, []byte{VersionSocks5, MethodNoAcceptable}) {
+	if !bytes.Equal(out, []byte{statute.VersionSocks5, statute.MethodNoAcceptable}) {
 		t.Fatalf("bad: %v", out)
 	}
 }

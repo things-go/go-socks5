@@ -3,23 +3,8 @@ package socks5
 import (
 	"fmt"
 	"io"
-)
 
-// auth defined
-const (
-	MethodNoAuth        = uint8(0)
-	MethodGSSAPI        = uint8(1)
-	MethodUserPassAuth  = uint8(2)
-	MethodNoAcceptable  = uint8(255)
-	UserPassAuthVersion = uint8(1)
-	AuthSuccess         = uint8(0)
-	AuthFailure         = uint8(1)
-)
-
-// auth error defined
-var (
-	ErrUserAuthFailed  = fmt.Errorf("user authentication failed")
-	ErrNoSupportedAuth = fmt.Errorf("no supported authentication mechanism")
+	"github.com/thinkgos/go-socks5/statute"
 )
 
 // AuthContext A Request encapsulates authentication state provided
@@ -44,13 +29,13 @@ type NoAuthAuthenticator struct{}
 
 // GetCode implement interface Authenticator
 func (a NoAuthAuthenticator) GetCode() uint8 {
-	return MethodNoAuth
+	return statute.MethodNoAuth
 }
 
 // Authenticate implement interface Authenticator
 func (a NoAuthAuthenticator) Authenticate(_ io.Reader, writer io.Writer, _ string) (*AuthContext, error) {
-	_, err := writer.Write([]byte{VersionSocks5, MethodNoAuth})
-	return &AuthContext{MethodNoAuth, make(map[string]string)}, err
+	_, err := writer.Write([]byte{statute.VersionSocks5, statute.MethodNoAuth})
+	return &AuthContext{statute.MethodNoAuth, make(map[string]string)}, err
 }
 
 // UserPassAuthenticator is used to handle username/password based
@@ -61,60 +46,41 @@ type UserPassAuthenticator struct {
 
 // GetCode implement interface Authenticator
 func (a UserPassAuthenticator) GetCode() uint8 {
-	return MethodUserPassAuth
+	return statute.MethodUserPassAuth
 }
 
 // Authenticate implement interface Authenticator
 func (a UserPassAuthenticator) Authenticate(reader io.Reader, writer io.Writer, userAddr string) (*AuthContext, error) {
 	// Tell the client to use user/pass auth
-	if _, err := writer.Write([]byte{VersionSocks5, MethodUserPassAuth}); err != nil {
+	if _, err := writer.Write([]byte{statute.VersionSocks5, statute.MethodUserPassAuth}); err != nil {
 		return nil, err
 	}
 
-	// Get the version and username length
-	header := []byte{0, 0}
-	if _, err := io.ReadAtLeast(reader, header, 2); err != nil {
-		return nil, err
-	}
-
-	// Ensure we are compatible
-	if header[0] != UserPassAuthVersion {
-		return nil, fmt.Errorf("unsupported auth version: %v", header[0])
-	}
-
-	// Get the user name
-	userLen := int(header[1])
-	user := make([]byte, userLen)
-	if _, err := io.ReadAtLeast(reader, user, userLen); err != nil {
-		return nil, err
-	}
-
-	// Get the password length
-	if _, err := reader.Read(header[:1]); err != nil {
-		return nil, err
-	}
-
-	// Get the password
-	passLen := int(header[0])
-	pass := make([]byte, passLen)
-	if _, err := io.ReadAtLeast(reader, pass, passLen); err != nil {
+	nup, err := statute.ParseUserPassRequest(reader)
+	if err != nil {
 		return nil, err
 	}
 
 	// Verify the password
-	if a.Credentials.Valid(string(user), string(pass), userAddr) {
-		if _, err := writer.Write([]byte{UserPassAuthVersion, AuthSuccess}); err != nil {
+	if !a.Credentials.Valid(string(nup.User), string(nup.Pass), userAddr) {
+		if _, err := writer.Write([]byte{statute.UserPassAuthVersion, statute.AuthFailure}); err != nil {
 			return nil, err
 		}
-	} else {
-		if _, err := writer.Write([]byte{UserPassAuthVersion, AuthFailure}); err != nil {
-			return nil, err
-		}
-		return nil, ErrUserAuthFailed
+		return nil, statute.ErrUserAuthFailed
+	}
+
+	if _, err := writer.Write([]byte{statute.UserPassAuthVersion, statute.AuthSuccess}); err != nil {
+		return nil, err
 	}
 
 	// Done
-	return &AuthContext{MethodUserPassAuth, map[string]string{"username": string(user), "password": string(pass)}}, nil
+	return &AuthContext{
+		statute.MethodUserPassAuth,
+		map[string]string{
+			"username": string(nup.User),
+			"password": string(nup.Pass),
+		},
+	}, nil
 }
 
 // authenticate is used to handle connection authentication
@@ -140,8 +106,8 @@ func (s *Server) authenticate(conn io.Writer, bufConn io.Reader, userAddr string
 // noAcceptableAuth is used to handle when we have no eligible
 // authentication mechanism
 func noAcceptableAuth(conn io.Writer) error {
-	conn.Write([]byte{VersionSocks5, MethodNoAcceptable})
-	return ErrNoSupportedAuth
+	conn.Write([]byte{statute.VersionSocks5, statute.MethodNoAcceptable})
+	return statute.ErrNoSupportedAuth
 }
 
 // readMethods is used to read the number of methods

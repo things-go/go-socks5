@@ -8,6 +8,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+
+	"github.com/thinkgos/go-socks5/statute"
 )
 
 // GPool is used to implement custom goroutine pool default use goroutine
@@ -132,7 +134,7 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	var authContext *AuthContext
 	var err error
 	// Ensure we are compatible
-	if version[0] == VersionSocks5 {
+	if version[0] == statute.VersionSocks5 {
 		// Authenticate the connection
 		authContext, err = s.authenticate(conn, bufConn, conn.RemoteAddr().String())
 		if err != nil {
@@ -140,7 +142,7 @@ func (s *Server) ServeConn(conn net.Conn) error {
 			s.logger.Errorf("%v", err)
 			return err
 		}
-	} else if version[0] != VersionSocks4 {
+	} else if version[0] != statute.VersionSocks4 {
 		err := fmt.Errorf("unsupported SOCKS version: %v", version[0])
 		s.logger.Errorf("%v", err)
 		return err
@@ -149,14 +151,14 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	// The client request detail
 	request, err := NewRequest(bufConn)
 	if err != nil {
-		if err == errUnrecognizedAddrType {
-			if err := SendReply(conn, Header{Version: version[0]}, RepAddrTypeNotSupported); err != nil {
+		if err == statute.ErrUnrecognizedAddrType {
+			if err := SendReply(conn, statute.Header{Version: version[0]}, statute.RepAddrTypeNotSupported); err != nil {
 				return fmt.Errorf("failed to send reply, %v", err)
 			}
 		}
 		return fmt.Errorf("failed to read destination address, %v", err)
 	}
-	if request.Header.Version == VersionSocks5 {
+	if request.Header.Version == statute.VersionSocks5 {
 		request.AuthContext = authContext
 	}
 	request.LocalAddr = conn.LocalAddr()
