@@ -129,16 +129,16 @@ func (c *Client) Dial(network, addr string) (net.Conn, error) {
 		if err != nil {
 			return nil, err
 		}
-		head := statute.Header{
-			Version: statute.VersionSocks5,
-			Command: statute.CommandConnect,
-			Address: a,
+		head := statute.Request{
+			Version:    statute.VersionSocks5,
+			Command:    statute.CommandConnect,
+			DstAddress: a,
 		}
 		if _, err := conn.Write(head.Bytes()); err != nil {
 			return nil, err
 		}
 
-		rspHead, err := statute.ParseHeader(conn.TCPConn)
+		rspHead, err := statute.ParseRequest(conn.TCPConn)
 		if err != nil {
 			return nil, err
 		}
@@ -169,15 +169,15 @@ func (c *Client) Dial(network, addr string) (net.Conn, error) {
 		if err != nil {
 			return nil, err
 		}
-		head := statute.Header{
-			Version: statute.VersionSocks5,
-			Command: statute.CommandConnect,
-			Address: a,
+		head := statute.Request{
+			Version:    statute.VersionSocks5,
+			Command:    statute.CommandConnect,
+			DstAddress: a,
 		}
 		if _, err := conn.Write(head.Bytes()); err != nil {
 			return nil, err
 		}
-		rspHead, err := statute.ParseHeader(conn.TCPConn)
+		rspHead, err := statute.ParseRequest(conn.TCPConn)
 		if err != nil {
 			return nil, err
 		}
@@ -185,7 +185,7 @@ func (c *Client) Dial(network, addr string) (net.Conn, error) {
 			return nil, errors.New("host unreachable")
 		}
 
-		raddr, err := net.ResolveUDPAddr("udp", rspHead.Address.String())
+		raddr, err := net.ResolveUDPAddr("udp", rspHead.DstAddress.String())
 		if err != nil {
 			return nil, err
 		}

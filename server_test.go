@@ -57,11 +57,11 @@ func TestSOCKS5_Connect(t *testing.T) {
 	req := new(bytes.Buffer)
 	req.Write([]byte{statute.VersionSocks5, 2, statute.MethodNoAuth, statute.MethodUserPassAuth})
 	req.Write([]byte{statute.UserPassAuthVersion, 3, 'f', 'o', 'o', 3, 'b', 'a', 'r'})
-	reqHead := statute.Header{
+	reqHead := statute.Request{
 		Version:  statute.VersionSocks5,
 		Command:  statute.CommandConnect,
 		Reserved: 0,
-		Address: statute.AddrSpec{
+		DstAddress: statute.AddrSpec{
 			"",
 			net.ParseIP("127.0.0.1"),
 			lAddr.Port,
@@ -80,11 +80,11 @@ func TestSOCKS5_Connect(t *testing.T) {
 		statute.VersionSocks5, statute.MethodUserPassAuth, // use user password auth
 		statute.UserPassAuthVersion, statute.AuthSuccess, // response auth success
 	}
-	rspHead := statute.Header{
+	rspHead := statute.Request{
 		Version:  statute.VersionSocks5,
 		Command:  statute.RepSuccess,
 		Reserved: 0,
-		Address: statute.AddrSpec{
+		DstAddress: statute.AddrSpec{
 			"",
 			net.ParseIP("127.0.0.1"),
 			0, // Ignore the port
@@ -152,11 +152,11 @@ func TestSOCKS5_Associate(t *testing.T) {
 	req := new(bytes.Buffer)
 	req.Write([]byte{statute.VersionSocks5, 2, statute.MethodNoAuth, statute.MethodUserPassAuth})
 	req.Write([]byte{statute.UserPassAuthVersion, 3, 'f', 'o', 'o', 3, 'b', 'a', 'r'})
-	reqHead := statute.Header{
+	reqHead := statute.Request{
 		Version:  statute.VersionSocks5,
 		Command:  statute.CommandAssociate,
 		Reserved: 0,
-		Address: statute.AddrSpec{
+		DstAddress: statute.AddrSpec{
 			"",
 			locIP,
 			lAddr.Port,
@@ -179,16 +179,16 @@ func TestSOCKS5_Associate(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, expected, out)
 
-	rspHead, err := statute.ParseHeader(conn)
+	rspHead, err := statute.ParseRequest(conn)
 	require.NoError(t, err)
 	require.Equal(t, statute.VersionSocks5, rspHead.Version)
 	require.Equal(t, statute.RepSuccess, rspHead.Command)
 
-	t.Logf("proxy bind listen port: %d", rspHead.Address.Port)
+	t.Logf("proxy bind listen port: %d", rspHead.DstAddress.Port)
 
 	udpConn, err := net.DialUDP("udp", nil, &net.UDPAddr{
 		IP:   locIP,
-		Port: rspHead.Address.Port,
+		Port: rspHead.DstAddress.Port,
 	})
 	require.NoError(t, err)
 	// Send a ping

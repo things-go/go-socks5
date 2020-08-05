@@ -136,7 +136,7 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	request, err := NewRequest(bufConn)
 	if err != nil {
 		if err == statute.ErrUnrecognizedAddrType {
-			if err := SendReply(conn, statute.Header{Version: mr.Ver}, statute.RepAddrTypeNotSupported); err != nil {
+			if err := SendReply(conn, statute.Request{Version: mr.Ver}, statute.RepAddrTypeNotSupported); err != nil {
 				return fmt.Errorf("failed to send reply %w", err)
 			}
 		}

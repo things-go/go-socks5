@@ -63,7 +63,7 @@ func NewPacket(destAddr string, data []byte) (p Packet, err error) {
 	return
 }
 
-// ParseHeader parse to packet
+// ParseRequest parse to packet
 func (sf *Packet) Parse(b []byte) error {
 	if len(b) <= 4+net.IPv4len+2 { // no data
 		return errors.New("too short")
@@ -104,7 +104,7 @@ func (sf *Packet) Parse(b []byte) error {
 	return nil
 }
 
-// Header returns s slice of packet header
+// Request returns s slice of packet reply
 func (sf *Packet) Header() []byte {
 	bs := make([]byte, 0, 32)
 	bs = append(bs, []byte{byte(sf.RSV << 8), byte(sf.RSV), sf.Frag}...)
