@@ -6,26 +6,7 @@ import (
 	"net"
 	"reflect"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
-
-func TestAddrSpecAddr(t *testing.T) {
-	addr1 := AddrSpec{
-		IP:   net.IPv4(127, 0, 0, 1),
-		Port: 8080,
-	}
-	assert.Equal(t, "127.0.0.1:8080", addr1.String())
-	assert.Equal(t, "127.0.0.1:8080", addr1.Address())
-
-	addr2 := AddrSpec{
-		FQDN: "localhost",
-		IP:   net.IPv4(127, 0, 0, 1),
-		Port: 8080,
-	}
-	assert.Equal(t, "127.0.0.1:8080", addr2.String())
-	assert.Equal(t, "localhost (127.0.0.1):8080", addr2.Address())
-}
 
 func TestParseHeader(t *testing.T) {
 	type args struct {
@@ -64,16 +45,6 @@ func TestParseHeader(t *testing.T) {
 				VersionSocks5, CommandConnect, 0,
 				AddrSpec{FQDN: "localhost", Port: 8080},
 				ATYPDomain,
-			},
-			false,
-		},
-		{
-			"SOCKS4",
-			args{bytes.NewReader([]byte{VersionSocks4, CommandConnect, 0x1f, 0x90, 127, 0, 0, 1})},
-			Header{
-				VersionSocks4, CommandConnect, 0,
-				AddrSpec{IP: net.IPv4(127, 0, 0, 1), Port: 8080},
-				0,
 			},
 			false,
 		},
@@ -125,15 +96,6 @@ func TestHeader_Bytes(t *testing.T) {
 				ATYPDomain,
 			},
 			[]byte{VersionSocks5, CommandConnect, 0, ATYPDomain, 9, 'l', 'o', 'c', 'a', 'l', 'h', 'o', 's', 't', 0x1f, 0x90},
-		},
-		{
-			"SOCKS4",
-			Header{
-				VersionSocks4, CommandConnect, 0,
-				AddrSpec{IP: net.IPv4(127, 0, 0, 1), Port: 8080},
-				0,
-			},
-			[]byte{VersionSocks4, CommandConnect, 0x1f, 0x90, 127, 0, 0, 1},
 		},
 	}
 	for _, tt := range tests {

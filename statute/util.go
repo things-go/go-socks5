@@ -44,9 +44,9 @@ func ParseAddrSpec(address string) (a AddrSpec, err error) {
 	}
 	ip := net.ParseIP(host)
 	if ip4 := ip.To4(); ip4 != nil {
-		a.IP = ip4
+		a.IP = ip
 	} else if ip6 := ip.To16(); ip6 != nil {
-		a.IP = ip6
+		a.IP = ip
 	} else {
 		a.FQDN = host
 	}

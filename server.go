@@ -113,6 +113,8 @@ func (s *Server) Serve(l net.Listener) error {
 
 // ServeConn is used to serve a single connection.
 func (s *Server) ServeConn(conn net.Conn) error {
+	var authContext *AuthContext
+
 	defer conn.Close()
 	bufConn := bufio.NewReader(conn)
 
@@ -120,19 +122,14 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	if err != nil {
 		return err
 	}
-
 	if mr.Ver != statute.VersionSocks5 {
 		return statute.ErrNotSupportVersion
 	}
 
-	var authContext *AuthContext
-
 	// Authenticate the connection
 	authContext, err = s.authenticate(conn, bufConn, conn.RemoteAddr().String(), mr.Methods)
 	if err != nil {
-		err = fmt.Errorf("failed to authenticate: %v", err)
-		s.logger.Errorf("%v", err)
-		return err
+		return fmt.Errorf("failed to authenticate: %w", err)
 	}
 
 	// The client request detail
@@ -140,21 +137,18 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	if err != nil {
 		if err == statute.ErrUnrecognizedAddrType {
 			if err := SendReply(conn, statute.Header{Version: mr.Ver}, statute.RepAddrTypeNotSupported); err != nil {
-				return fmt.Errorf("failed to send reply, %v", err)
+				return fmt.Errorf("failed to send reply %w", err)
 			}
 		}
-		return fmt.Errorf("failed to read destination address, %v", err)
+		return fmt.Errorf("failed to read destination address, %w", err)
 	}
-	if request.Header.Version == statute.VersionSocks5 {
-		request.AuthContext = authContext
-	}
+
+	request.AuthContext = authContext
 	request.LocalAddr = conn.LocalAddr()
 	request.RemoteAddr = conn.RemoteAddr()
 	// Process the client request
 	if err := s.handleRequest(conn, request); err != nil {
-		err = fmt.Errorf("failed to handle request, %v", err)
-		s.logger.Errorf("%v", err)
-		return err
+		return fmt.Errorf("failed to handle request, %v", err)
 	}
 	return nil
 }

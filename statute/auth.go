@@ -87,7 +87,7 @@ type UserPassReply struct {
 
 // ParseUserPassReply parse user's password reply packet.
 func ParseUserPassReply(r io.Reader) (n UserPassReply, err error) {
-	bb := make([]byte, 2)
+	bb := []byte{0, 0}
 	if _, err = io.ReadFull(r, bb); err != nil {
 		return
 	}

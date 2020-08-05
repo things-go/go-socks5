@@ -20,7 +20,6 @@ const (
 // socks const defined
 const (
 	// protocol version
-	VersionSocks4 = byte(0x04)
 	VersionSocks5 = byte(0x05)
 	// request command
 	CommandConnect   = byte(0x01)

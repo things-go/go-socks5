@@ -35,14 +35,6 @@ type Request struct {
 
 // NewRequest creates a new Request from the tcp connection
 func NewRequest(bufConn io.Reader) (*Request, error) {
-	/*
-		The SOCKS request is formed as follows:
-		+-----+-----+-------+------+----------+----------+
-		| VER | CMD |  RSV  | ATYP | DST.ADDR | DST.PORT |
-		+-----+-----+-------+------+----------+----------+
-		|  1  |  1  | X'00' |  1   | Variable |    2     |
-		+-----+-----+-------+------+----------+----------+
-	*/
 	hd, err := statute.ParseHeader(bufConn)
 	if err != nil {
 		return nil, err
