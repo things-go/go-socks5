@@ -2,125 +2,62 @@ package socks5
 
 import (
 	"bytes"
+	"errors"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/thinkgos/go-socks5/statute"
 )
 
 func TestNoAuth(t *testing.T) {
 	req := bytes.NewBuffer(nil)
-	var resp bytes.Buffer
+	rsp := new(bytes.Buffer)
+	cator := NoAuthAuthenticator{}
 
-	s := New()
-	ctx, err := s.authenticate(&resp, req, "", []byte{statute.MethodNoAuth})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if ctx.Method != statute.MethodNoAuth {
-		t.Fatal("Invalid Context Method")
-	}
-
-	out := resp.Bytes()
-	if !bytes.Equal(out, []byte{statute.VersionSocks5, statute.MethodNoAuth}) {
-		t.Fatalf("bad: %v", out)
-	}
+	ctx, err := cator.Authenticate(req, rsp, "")
+	require.NoError(t, err)
+	assert.Equal(t, statute.MethodNoAuth, ctx.Method)
+	assert.Equal(t, []byte{statute.VersionSocks5, statute.MethodNoAuth}, rsp.Bytes())
 }
 
 func TestPasswordAuth_Valid(t *testing.T) {
-	req := bytes.NewBuffer(nil)
-	req.Write([]byte{1, 3, 'f', 'o', 'o', 3, 'b', 'a', 'r'})
-	var resp bytes.Buffer
-
-	cred := StaticCredentials{
-		"foo": "bar",
+	req := bytes.NewBuffer([]byte{1, 3, 'f', 'o', 'o', 3, 'b', 'a', 'r'})
+	rsp := new(bytes.Buffer)
+	cator := UserPassAuthenticator{
+		StaticCredentials{
+			"foo": "bar",
+		},
 	}
 
-	cator := UserPassAuthenticator{Credentials: cred}
-
-	s := New(WithAuthMethods([]Authenticator{cator}))
-
-	ctx, err := s.authenticate(&resp, req, "", []byte{statute.MethodUserPassAuth})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if ctx.Method != statute.MethodUserPassAuth {
-		t.Fatal("Invalid Context Method")
-	}
+	ctx, err := cator.Authenticate(req, rsp, "")
+	require.NoError(t, err)
+	assert.Equal(t, statute.MethodUserPassAuth, ctx.Method)
 
 	val, ok := ctx.Payload["username"]
-	if !ok {
-		t.Fatal("Missing key username in auth context's payload")
-	}
-
-	if val != "foo" {
-		t.Fatal("Invalid username in auth context's payload")
-	}
+	require.True(t, ok)
+	require.Equal(t, "foo", val)
 
 	val, ok = ctx.Payload["password"]
-	if !ok {
-		t.Fatal("Missing key password in auth context's payload")
-	}
+	require.True(t, ok)
+	require.Equal(t, "bar", val)
 
-	if val != "bar" {
-		t.Fatal("Invalid username in auth context's payload")
-	}
-
-	out := resp.Bytes()
-	if !bytes.Equal(out, []byte{statute.VersionSocks5, statute.MethodUserPassAuth, 1, statute.AuthSuccess}) {
-		t.Fatalf("bad: %v", out)
-	}
+	assert.Equal(t, []byte{statute.VersionSocks5, statute.MethodUserPassAuth, 1, statute.AuthSuccess}, rsp.Bytes())
 }
 
 func TestPasswordAuth_Invalid(t *testing.T) {
-	req := bytes.NewBuffer(nil)
-	req.Write([]byte{1, 3, 'f', 'o', 'o', 3, 'b', 'a', 'z'})
-	var resp bytes.Buffer
-
-	cred := StaticCredentials{
-		"foo": "bar",
-	}
-	cator := UserPassAuthenticator{Credentials: cred}
-	s := New(WithAuthMethods([]Authenticator{cator}))
-
-	ctx, err := s.authenticate(&resp, req, "", []byte{statute.MethodNoAuth, statute.MethodUserPassAuth})
-	if err != statute.ErrUserAuthFailed {
-		t.Fatalf("err: %v", err)
+	req := bytes.NewBuffer([]byte{1, 3, 'f', 'o', 'o', 3, 'b', 'a', 'z'})
+	rsp := new(bytes.Buffer)
+	cator := UserPassAuthenticator{
+		StaticCredentials{
+			"foo": "bar",
+		},
 	}
 
-	if ctx != nil {
-		t.Fatal("Invalid Context Method")
-	}
+	ctx, err := cator.Authenticate(req, rsp, "")
+	require.True(t, errors.Is(err, statute.ErrUserAuthFailed))
+	require.Nil(t, ctx)
 
-	out := resp.Bytes()
-	if !bytes.Equal(out, []byte{statute.VersionSocks5, statute.MethodUserPassAuth, 1, statute.AuthFailure}) {
-		t.Fatalf("bad: %v", out)
-	}
-}
-
-func TestNoSupportedAuth(t *testing.T) {
-	req := bytes.NewBuffer(nil)
-	var resp bytes.Buffer
-
-	cred := StaticCredentials{
-		"foo": "bar",
-	}
-	cator := UserPassAuthenticator{Credentials: cred}
-
-	s := New(WithAuthMethods([]Authenticator{cator}))
-
-	ctx, err := s.authenticate(&resp, req, "", []byte{statute.MethodNoAuth})
-	if err != statute.ErrNoSupportedAuth {
-		t.Fatalf("err: %v", err)
-	}
-
-	if ctx != nil {
-		t.Fatal("Invalid Context Method")
-	}
-
-	out := resp.Bytes()
-	if !bytes.Equal(out, []byte{statute.VersionSocks5, statute.MethodNoAcceptable}) {
-		t.Fatalf("bad: %v", out)
-	}
+	assert.Equal(t, []byte{statute.VersionSocks5, statute.MethodUserPassAuth, 1, statute.AuthFailure}, rsp.Bytes())
 }

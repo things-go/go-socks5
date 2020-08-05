@@ -12,6 +12,7 @@ func TestPool(t *testing.T) {
 	b := p.Get()
 	bs := b[0:cap(b)]
 	require.Equal(t, cap(b), len(bs))
+
 	p.Put(b)
 	p.Get()
 	p.Put(b)
@@ -24,6 +25,7 @@ func BenchmarkSyncPool(b *testing.B) {
 	wg := new(sync.WaitGroup)
 
 	b.ResetTimer()
+	b.StartTimer()
 	for n := 0; n < b.N; n++ {
 		wg.Add(1)
 		go func() {
@@ -33,4 +35,5 @@ func BenchmarkSyncPool(b *testing.B) {
 		}()
 	}
 	wg.Wait()
+	b.StopTimer()
 }

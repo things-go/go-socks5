@@ -13,7 +13,7 @@ type AuthContext struct {
 	Method uint8
 	// Payload provided during negotiation.
 	// Keys depend on the used auth method.
-	// For UserPassauth contains username/password
+	// For UserPass auth contains username/password
 	Payload map[string]string
 }
 
@@ -27,9 +27,7 @@ type Authenticator interface {
 type NoAuthAuthenticator struct{}
 
 // GetCode implement interface Authenticator
-func (a NoAuthAuthenticator) GetCode() uint8 {
-	return statute.MethodNoAuth
-}
+func (a NoAuthAuthenticator) GetCode() uint8 { return statute.MethodNoAuth }
 
 // Authenticate implement interface Authenticator
 func (a NoAuthAuthenticator) Authenticate(_ io.Reader, writer io.Writer, _ string) (*AuthContext, error) {
@@ -44,9 +42,7 @@ type UserPassAuthenticator struct {
 }
 
 // GetCode implement interface Authenticator
-func (a UserPassAuthenticator) GetCode() uint8 {
-	return statute.MethodUserPassAuth
-}
+func (a UserPassAuthenticator) GetCode() uint8 { return statute.MethodUserPassAuth }
 
 // Authenticate implement interface Authenticator
 func (a UserPassAuthenticator) Authenticate(reader io.Reader, writer io.Writer, userAddr string) (*AuthContext, error) {
@@ -71,7 +67,6 @@ func (a UserPassAuthenticator) Authenticate(reader io.Reader, writer io.Writer, 
 	if _, err := writer.Write([]byte{statute.UserPassAuthVersion, statute.AuthSuccess}); err != nil {
 		return nil, err
 	}
-
 	// Done
 	return &AuthContext{
 		statute.MethodUserPassAuth,
@@ -80,17 +75,4 @@ func (a UserPassAuthenticator) Authenticate(reader io.Reader, writer io.Writer, 
 			"password": string(nup.Pass),
 		},
 	}, nil
-}
-
-// authenticate is used to handle connection authentication
-func (s *Server) authenticate(conn io.Writer, bufConn io.Reader, userAddr string, methods []byte) (*AuthContext, error) {
-	// Select a usable method
-	for _, method := range methods {
-		if cator, found := s.authMethods[method]; found {
-			return cator.Authenticate(bufConn, conn, userAddr)
-		}
-	}
-	// No usable method found
-	conn.Write([]byte{statute.VersionSocks5, statute.MethodNoAcceptable}) // nolint: errcheck
-	return nil, statute.ErrNoSupportedAuth
 }

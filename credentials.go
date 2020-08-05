@@ -12,8 +12,5 @@ type StaticCredentials map[string]string
 // Valid implement interface CredentialStore
 func (s StaticCredentials) Valid(user, password, _ string) bool {
 	pass, ok := s[user]
-	if !ok {
-		return false
-	}
-	return password == pass
+	return ok && password == pass
 }

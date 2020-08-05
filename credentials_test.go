@@ -2,6 +2,8 @@ package socks5
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestStaticCredentials(t *testing.T) {
@@ -10,15 +12,7 @@ func TestStaticCredentials(t *testing.T) {
 		"baz": "",
 	}
 
-	if !creds.Valid("foo", "bar", "") {
-		t.Fatalf("expect valid")
-	}
-
-	if !creds.Valid("baz", "", "") {
-		t.Fatalf("expect valid")
-	}
-
-	if creds.Valid("foo", "", "") {
-		t.Fatalf("expect invalid")
-	}
+	assert.True(t, creds.Valid("foo", "bar", ""))
+	assert.True(t, creds.Valid("baz", "", ""))
+	assert.False(t, creds.Valid("foo", "", ""))
 }

@@ -3,6 +3,9 @@ package socks5
 import (
 	"context"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDNSResolver(t *testing.T) {
@@ -10,11 +13,6 @@ func TestDNSResolver(t *testing.T) {
 	ctx := context.Background()
 
 	_, addr, err := d.Resolve(ctx, "localhost")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if !addr.IsLoopback() {
-		t.Fatalf("expected loopback")
-	}
+	require.NoError(t, err)
+	assert.True(t, addr.IsLoopback())
 }

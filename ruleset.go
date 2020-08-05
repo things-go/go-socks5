@@ -11,22 +11,27 @@ type RuleSet interface {
 	Allow(ctx context.Context, req *Request) (context.Context, bool)
 }
 
-// PermitAll returns a RuleSet which allows all types of connections
-func PermitAll() RuleSet {
-	return &PermitCommand{true, true, true}
-}
-
-// PermitNone returns a RuleSet which disallows all types of connections
-func PermitNone() RuleSet {
-	return &PermitCommand{false, false, false}
-}
-
 // PermitCommand is an implementation of the RuleSet which
 // enables filtering supported commands
 type PermitCommand struct {
 	EnableConnect   bool
 	EnableBind      bool
 	EnableAssociate bool
+}
+
+// NewPermitNone returns a RuleSet which disallows all types of connections
+func NewPermitNone() RuleSet {
+	return &PermitCommand{false, false, false}
+}
+
+// NewPermitAll returns a RuleSet which allows all types of connections
+func NewPermitAll() RuleSet {
+	return &PermitCommand{true, true, true}
+}
+
+// NewPermitConnAndAss returns a RuleSet which allows Connect and Associate connection
+func NewPermitConnAndAss() RuleSet {
+	return &PermitCommand{true, false, true}
 }
 
 // Allow implement interface RuleSet

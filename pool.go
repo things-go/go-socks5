@@ -13,9 +13,7 @@ func newPool(size int) *pool {
 	return &pool{
 		size,
 		&sync.Pool{
-			New: func() interface{} {
-				return make([]byte, 0, size)
-			}},
+			New: func() interface{} { return make([]byte, 0, size) }},
 	}
 }
 func (sf *pool) Get() []byte {

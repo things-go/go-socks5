@@ -33,7 +33,7 @@ type Server struct {
 	// Defaults to DNSResolver if not provided.
 	resolver NameResolver
 	// rules is provided to enable custom logic around permitting
-	// various commands. If not provided, PermitAll is used.
+	// various commands. If not provided, NewPermitAll is used.
 	rules RuleSet
 	// rewriter can be used to transparently rewrite addresses.
 	// This is invoked before the RuleSet is invoked.
@@ -63,7 +63,7 @@ func New(opts ...Option) *Server {
 		authCustomMethods: []Authenticator{&NoAuthAuthenticator{}},
 		bufferPool:        newPool(2 * 1024),
 		resolver:          DNSResolver{},
-		rules:             PermitAll(),
+		rules:             NewPermitAll(),
 		logger:            NewLogger(log.New(ioutil.Discard, "socks5: ", log.LstdFlags)),
 		dial: func(ctx context.Context, net_, addr string) (net.Conn, error) {
 			return net.Dial(net_, addr)
@@ -157,6 +157,19 @@ func (s *Server) ServeConn(conn net.Conn) error {
 		return err
 	}
 	return nil
+}
+
+// authenticate is used to handle connection authentication
+func (s *Server) authenticate(conn io.Writer, bufConn io.Reader, userAddr string, methods []byte) (*AuthContext, error) {
+	// Select a usable method
+	for _, method := range methods {
+		if cator, found := s.authMethods[method]; found {
+			return cator.Authenticate(bufConn, conn, userAddr)
+		}
+	}
+	// No usable method found
+	conn.Write([]byte{statute.VersionSocks5, statute.MethodNoAcceptable}) // nolint: errcheck
+	return nil, statute.ErrNoSupportedAuth
 }
 
 func (s *Server) submit(f func()) {

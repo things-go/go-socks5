@@ -4,22 +4,44 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/thinkgos/go-socks5/statute"
 )
 
 func TestPermitCommand(t *testing.T) {
+	var r RuleSet
+	var ok bool
+
 	ctx := context.Background()
-	r := &PermitCommand{true, false, false}
 
-	if _, ok := r.Allow(ctx, &Request{Header: statute.Header{Command: statute.CommandConnect}}); !ok {
-		t.Fatalf("expect connect")
-	}
+	r = NewPermitAll()
+	_, ok = r.Allow(ctx, &Request{Header: statute.Header{Command: statute.CommandConnect}})
+	require.True(t, ok)
+	_, ok = r.Allow(ctx, &Request{Header: statute.Header{Command: statute.CommandBind}})
+	require.True(t, ok)
+	_, ok = r.Allow(ctx, &Request{Header: statute.Header{Command: statute.CommandAssociate}})
+	require.True(t, ok)
+	_, ok = r.Allow(ctx, &Request{Header: statute.Header{Command: 0x00}})
+	require.False(t, ok)
 
-	if _, ok := r.Allow(ctx, &Request{Header: statute.Header{Command: statute.CommandBind}}); ok {
-		t.Fatalf("do not expect bind")
-	}
+	r = NewPermitConnAndAss()
+	_, ok = r.Allow(ctx, &Request{Header: statute.Header{Command: statute.CommandConnect}})
+	require.True(t, ok)
+	_, ok = r.Allow(ctx, &Request{Header: statute.Header{Command: statute.CommandBind}})
+	require.False(t, ok)
+	_, ok = r.Allow(ctx, &Request{Header: statute.Header{Command: statute.CommandAssociate}})
+	require.True(t, ok)
+	_, ok = r.Allow(ctx, &Request{Header: statute.Header{Command: 0x00}})
+	require.False(t, ok)
 
-	if _, ok := r.Allow(ctx, &Request{Header: statute.Header{Command: statute.CommandAssociate}}); ok {
-		t.Fatalf("do not expect associate")
-	}
+	r = NewPermitNone()
+	_, ok = r.Allow(ctx, &Request{Header: statute.Header{Command: statute.CommandConnect}})
+	require.False(t, ok)
+	_, ok = r.Allow(ctx, &Request{Header: statute.Header{Command: statute.CommandBind}})
+	require.False(t, ok)
+	_, ok = r.Allow(ctx, &Request{Header: statute.Header{Command: statute.CommandAssociate}})
+	require.False(t, ok)
+	_, ok = r.Allow(ctx, &Request{Header: statute.Header{Command: 0x00}})
+	require.False(t, ok)
 }

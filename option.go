@@ -43,7 +43,7 @@ func WithResolver(res NameResolver) Option {
 }
 
 // WithRule is provided to enable custom logic around permitting
-// various commands. If not provided, PermitAll is used.
+// various commands. If not provided, NewPermitAll is used.
 func WithRule(rule RuleSet) Option {
 	return func(s *Server) {
 		if rule != nil {
