@@ -1,16 +1,16 @@
 language: go
 
-go:
-  - 1.11.x
-  - 1.12.x
-  - 1.13.x
-  - 1.14.x
+matrix:
+  fast_finish: true
+  include:
+    - go: 1.13.x
+    - go: 1.14.x
+    - go: master
+
+before_install:
+  - go get -v ./...
 
 install:
-  - go get -t -v ./...
-
-script:
-  - go test -v -benchmem -test.bench=".*" -coverprofile=coverage.txt -covermode=atomic ./...
-
+  - go test -v -benchmem -test.bench=".*" -coverprofile=coverage.txt -covermode=atomic  ./...
 after_success:
   - bash <(curl -s https://codecov.io/bash)
