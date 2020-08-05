@@ -1,7 +1,6 @@
 package socks5
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/thinkgos/go-socks5/statute"
@@ -51,11 +50,11 @@ func (a UserPassAuthenticator) GetCode() uint8 {
 
 // Authenticate implement interface Authenticator
 func (a UserPassAuthenticator) Authenticate(reader io.Reader, writer io.Writer, userAddr string) (*AuthContext, error) {
-	// Tell the client to use user/pass auth
+	// reply the client to use user/pass auth
 	if _, err := writer.Write([]byte{statute.VersionSocks5, statute.MethodUserPassAuth}); err != nil {
 		return nil, err
 	}
-
+	// get user and user's password
 	nup, err := statute.ParseUserPassRequest(reader)
 	if err != nil {
 		return nil, err
@@ -84,42 +83,14 @@ func (a UserPassAuthenticator) Authenticate(reader io.Reader, writer io.Writer, 
 }
 
 // authenticate is used to handle connection authentication
-func (s *Server) authenticate(conn io.Writer, bufConn io.Reader, userAddr string) (*AuthContext, error) {
-	// Get the methods
-	methods, err := readMethods(bufConn)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get auth methods: %v", err)
-	}
-
+func (s *Server) authenticate(conn io.Writer, bufConn io.Reader, userAddr string, methods []byte) (*AuthContext, error) {
 	// Select a usable method
 	for _, method := range methods {
-		cator, found := s.authMethods[method]
-		if found {
+		if cator, found := s.authMethods[method]; found {
 			return cator.Authenticate(bufConn, conn, userAddr)
 		}
 	}
-
 	// No usable method found
-	return nil, noAcceptableAuth(conn)
-}
-
-// noAcceptableAuth is used to handle when we have no eligible
-// authentication mechanism
-func noAcceptableAuth(conn io.Writer) error {
-	conn.Write([]byte{statute.VersionSocks5, statute.MethodNoAcceptable})
-	return statute.ErrNoSupportedAuth
-}
-
-// readMethods is used to read the number of methods
-// and proceeding auth methods
-func readMethods(r io.Reader) ([]byte, error) {
-	header := []byte{0}
-	if _, err := r.Read(header); err != nil {
-		return nil, err
-	}
-
-	numMethods := int(header[0])
-	methods := make([]byte, numMethods)
-	_, err := io.ReadAtLeast(r, methods, numMethods)
-	return methods, err
+	conn.Write([]byte{statute.VersionSocks5, statute.MethodNoAcceptable}) // nolint: errcheck
+	return nil, statute.ErrNoSupportedAuth
 }

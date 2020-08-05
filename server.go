@@ -116,34 +116,21 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	defer conn.Close()
 	bufConn := bufio.NewReader(conn)
 
-	/*
-		The SOCKS handshake is formed as follows:
-		+-----+----------+---------------+
-		| VER | NMETHODS |    METHODS    |
-		+-----+----------+---------------+
-		|  1  |     1    | X'00' - X'FF' |
-		+-----+----------+---------------+
-	*/
-	// Read the version byte
-	version := []byte{0}
-	if _, err := bufConn.Read(version); err != nil {
-		s.logger.Errorf("failed to get version byte: %v", err)
+	mr, err := statute.ParseMethodRequest(bufConn)
+	if err != nil {
 		return err
 	}
 
+	if mr.Ver != statute.VersionSocks5 {
+		return statute.ErrNotSupportVersion
+	}
+
 	var authContext *AuthContext
-	var err error
-	// Ensure we are compatible
-	if version[0] == statute.VersionSocks5 {
-		// Authenticate the connection
-		authContext, err = s.authenticate(conn, bufConn, conn.RemoteAddr().String())
-		if err != nil {
-			err = fmt.Errorf("failed to authenticate: %v", err)
-			s.logger.Errorf("%v", err)
-			return err
-		}
-	} else if version[0] != statute.VersionSocks4 {
-		err := fmt.Errorf("unsupported SOCKS version: %v", version[0])
+
+	// Authenticate the connection
+	authContext, err = s.authenticate(conn, bufConn, conn.RemoteAddr().String(), mr.Methods)
+	if err != nil {
+		err = fmt.Errorf("failed to authenticate: %v", err)
 		s.logger.Errorf("%v", err)
 		return err
 	}
@@ -152,7 +139,7 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	request, err := NewRequest(bufConn)
 	if err != nil {
 		if err == statute.ErrUnrecognizedAddrType {
-			if err := SendReply(conn, statute.Header{Version: version[0]}, statute.RepAddrTypeNotSupported); err != nil {
+			if err := SendReply(conn, statute.Header{Version: mr.Ver}, statute.RepAddrTypeNotSupported); err != nil {
 				return fmt.Errorf("failed to send reply, %v", err)
 			}
 		}

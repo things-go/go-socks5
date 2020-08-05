@@ -20,7 +20,8 @@ type UserPassRequest struct {
 	Pass []byte // 1-255 bytes
 }
 
-func NewNegotiationUserPassRequest(ver byte, user, pass []byte) UserPassRequest {
+// NewUserPassRequest new user's password request packet with ver,user, pass
+func NewUserPassRequest(ver byte, user, pass []byte) UserPassRequest {
 	return UserPassRequest{
 		ver,
 		byte(len(user)),
@@ -30,15 +31,17 @@ func NewNegotiationUserPassRequest(ver byte, user, pass []byte) UserPassRequest 
 	}
 }
 
+// ParseUserPassRequest parse user's password request.
 func ParseUserPassRequest(r io.Reader) (nup UserPassRequest, err error) {
 	// Get the version and username length
 	header := []byte{0, 0}
 	if _, err = io.ReadAtLeast(r, header, 2); err != nil {
 		return
 	}
-	nup.Ver = header[0]
+
 	// Ensure we are compatible
-	if header[0] != UserPassAuthVersion {
+	nup.Ver = header[0]
+	if nup.Ver != UserPassAuthVersion {
 		err = fmt.Errorf("unsupported auth version: %v", header[0])
 		return
 	}
@@ -82,6 +85,7 @@ type UserPassReply struct {
 	Status byte
 }
 
+// ParseUserPassReply parse user's password reply packet.
 func ParseUserPassReply(r io.Reader) (n UserPassReply, err error) {
 	bb := make([]byte, 2)
 	if _, err = io.ReadFull(r, bb); err != nil {

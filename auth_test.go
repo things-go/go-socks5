@@ -9,11 +9,10 @@ import (
 
 func TestNoAuth(t *testing.T) {
 	req := bytes.NewBuffer(nil)
-	req.Write([]byte{1, statute.MethodNoAuth})
 	var resp bytes.Buffer
 
 	s := New()
-	ctx, err := s.authenticate(&resp, req, "")
+	ctx, err := s.authenticate(&resp, req, "", []byte{statute.MethodNoAuth})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -30,7 +29,6 @@ func TestNoAuth(t *testing.T) {
 
 func TestPasswordAuth_Valid(t *testing.T) {
 	req := bytes.NewBuffer(nil)
-	req.Write([]byte{2, statute.MethodNoAuth, statute.MethodUserPassAuth})
 	req.Write([]byte{1, 3, 'f', 'o', 'o', 3, 'b', 'a', 'r'})
 	var resp bytes.Buffer
 
@@ -42,7 +40,7 @@ func TestPasswordAuth_Valid(t *testing.T) {
 
 	s := New(WithAuthMethods([]Authenticator{cator}))
 
-	ctx, err := s.authenticate(&resp, req, "")
+	ctx, err := s.authenticate(&resp, req, "", []byte{statute.MethodUserPassAuth})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -77,7 +75,6 @@ func TestPasswordAuth_Valid(t *testing.T) {
 
 func TestPasswordAuth_Invalid(t *testing.T) {
 	req := bytes.NewBuffer(nil)
-	req.Write([]byte{2, statute.MethodNoAuth, statute.MethodUserPassAuth})
 	req.Write([]byte{1, 3, 'f', 'o', 'o', 3, 'b', 'a', 'z'})
 	var resp bytes.Buffer
 
@@ -87,7 +84,7 @@ func TestPasswordAuth_Invalid(t *testing.T) {
 	cator := UserPassAuthenticator{Credentials: cred}
 	s := New(WithAuthMethods([]Authenticator{cator}))
 
-	ctx, err := s.authenticate(&resp, req, "")
+	ctx, err := s.authenticate(&resp, req, "", []byte{statute.MethodNoAuth, statute.MethodUserPassAuth})
 	if err != statute.ErrUserAuthFailed {
 		t.Fatalf("err: %v", err)
 	}
@@ -104,7 +101,6 @@ func TestPasswordAuth_Invalid(t *testing.T) {
 
 func TestNoSupportedAuth(t *testing.T) {
 	req := bytes.NewBuffer(nil)
-	req.Write([]byte{1, statute.MethodNoAuth})
 	var resp bytes.Buffer
 
 	cred := StaticCredentials{
@@ -114,7 +110,7 @@ func TestNoSupportedAuth(t *testing.T) {
 
 	s := New(WithAuthMethods([]Authenticator{cator}))
 
-	ctx, err := s.authenticate(&resp, req, "")
+	ctx, err := s.authenticate(&resp, req, "", []byte{statute.MethodNoAuth})
 	if err != statute.ErrNoSupportedAuth {
 		t.Fatalf("err: %v", err)
 	}

@@ -201,7 +201,7 @@ func (c *Client) handshake() error {
 	}
 
 	if methods == statute.MethodUserPassAuth {
-		_, err = c.TCPConn.Write(statute.NewNegotiationUserPassRequest(statute.UserPassAuthVersion, []byte(c.UserName), []byte(c.Password)).Bytes())
+		_, err = c.TCPConn.Write(statute.NewUserPassRequest(statute.UserPassAuthVersion, []byte(c.UserName), []byte(c.Password)).Bytes())
 		if err != nil {
 			return err
 		}

@@ -310,15 +310,6 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, request 
 
 // SendReply is used to send a reply message
 func SendReply(w io.Writer, head statute.Header, resp uint8, bindAddr ...net.Addr) error {
-	/*
-		The SOCKS response is formed as follows:
-		+----+-----+-------+------+----------+----------+
-		|VER | CMD |  RSV  | ATYP | BND.ADDR | BND.PORT |
-		+----+-----+-------+------+----------+----------+
-		| 1  |  1  | X'00' |  1   | Variable |    2     |
-		+----+-----+-------+------+----------+----------+
-	*/
-
 	head.Command = resp
 
 	if len(bindAddr) == 0 {

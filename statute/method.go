@@ -17,7 +17,7 @@ type MethodRequest struct {
 	Methods  []byte // 1-255 bytes
 }
 
-// NewMethodRequest new  negotiation method request
+// NewMethodRequest new negotiation method request
 func NewMethodRequest(ver byte, medthods []byte) MethodRequest {
 	return MethodRequest{
 		ver,
@@ -26,9 +26,29 @@ func NewMethodRequest(ver byte, medthods []byte) MethodRequest {
 	}
 }
 
+// ParseMethodRequest parse method request.
+func ParseMethodRequest(r io.Reader) (mr MethodRequest, err error) {
+	// Read the version byte
+	tmp := []byte{0}
+	if _, err = r.Read(tmp); err != nil {
+		return
+	}
+	mr.Ver = tmp[0]
+	// Read number method
+	if _, err = r.Read(tmp); err != nil {
+		return
+	}
+	mr.NMethods = tmp[0]
+	mr.Methods = make([]byte, mr.NMethods)
+	_, err = io.ReadAtLeast(r, mr.Methods, int(mr.NMethods))
+	return
+}
+
 func (n MethodRequest) Bytes() []byte {
 	b := make([]byte, 0, 2+n.NMethods)
-	return append(append(b, n.Ver, n.NMethods), n.Methods...)
+	b = append(b, n.Ver, n.NMethods)
+	b = append(b, n.Methods...)
+	return b
 }
 
 // MethodReply is the negotiation method reply packet
@@ -43,8 +63,9 @@ type MethodReply struct {
 	Method byte
 }
 
+// ParseMethodReply parse method reply.
 func ParseMethodReply(r io.Reader) (n MethodReply, err error) {
-	bb := make([]byte, 2)
+	bb := []byte{0, 0}
 	if _, err = io.ReadFull(r, bb); err != nil {
 		return
 	}

@@ -1,9 +1,10 @@
 package statute
 
 import (
-	"fmt"
+	"errors"
 )
 
 var (
-	ErrUnrecognizedAddrType = fmt.Errorf("Unrecognized address type")
+	ErrUnrecognizedAddrType = errors.New("Unrecognized address type")
+	ErrNotSupportVersion    = errors.New("not support version")
 )
