@@ -35,22 +35,17 @@ type Request struct {
 	RawDestAddr *AddrSpec
 }
 
-type conn interface {
-	Write([]byte) (int, error)
-	RemoteAddr() net.Addr
-}
-
 // NewRequest creates a new Request from the tcp connection
 func NewRequest(bufConn io.Reader) (*Request, error) {
 	/*
 		The SOCKS request is formed as follows:
-		+----+-----+-------+------+----------+----------+
-		|VER | CMD |  RSV  | ATYP | DST.ADDR | DST.PORT |
-		+----+-----+-------+------+----------+----------+
-		| 1  |  1  | X'00' |  1   | Variable |    2     |
-		+----+-----+-------+------+----------+----------+
+		+-----+-----+-------+------+----------+----------+
+		| VER | CMD |  RSV  | ATYP | DST.ADDR | DST.PORT |
+		+-----+-----+-------+------+----------+----------+
+		|  1  |  1  | X'00' |  1   | Variable |    2     |
+		+-----+-----+-------+------+----------+----------+
 	*/
-	hd, err := Parse(bufConn)
+	hd, err := ParseHeader(bufConn)
 	if err != nil {
 		return nil, err
 	}
@@ -354,7 +349,7 @@ func SendReply(w io.Writer, head Header, resp uint8, bindAddr ...net.Addr) error
 			head.Address.IP = addrSpec.IP.To4()
 			head.Address.Port = addrSpec.Port
 		case addrSpec.IP.To16() != nil:
-			head.addrType = ATYPIPV6
+			head.addrType = ATYPIPv6
 			head.Address.IP = addrSpec.IP.To16()
 			head.Address.Port = addrSpec.Port
 		default:

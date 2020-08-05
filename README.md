@@ -48,4 +48,5 @@ if err := server.ListenAndServe("tcp", "127.0.0.1:8000"); err != nil {
 ```
 
 # Reference
-original armon go-sock5 [go-sock5](https://github.com/armon/go-socks5)  
+- [rfc1928](https://www.ietf.org/rfc/rfc1928.txt) 
+- original armon go-sock5 [go-sock5](https://github.com/armon/go-socks5)  

@@ -48,7 +48,7 @@ func NewPacket(destAddr string, data []byte) (p Packet, err error) {
 			p.ATYP = ATYPIPv4
 			p.DstAddr.IP = ip
 		} else {
-			p.ATYP = ATYPIPV6
+			p.ATYP = ATYPIPv6
 			p.DstAddr.IP = ip
 		}
 	} else {
@@ -63,7 +63,7 @@ func NewPacket(destAddr string, data []byte) (p Packet, err error) {
 	return
 }
 
-// Parse parse to packet
+// ParseHeader parse to packet
 func (sf *Packet) Parse(b []byte) error {
 	if len(b) <= 4+net.IPv4len+2 { // no data
 		return errors.New("too short")
@@ -79,7 +79,7 @@ func (sf *Packet) Parse(b []byte) error {
 		headLen += net.IPv4len + 2
 		sf.DstAddr.IP = net.IPv4(b[4], b[5], b[6], b[7])
 		sf.DstAddr.Port = buildPort(b[4+net.IPv4len], b[4+net.IPv4len+1])
-	case ATYPIPV6:
+	case ATYPIPv6:
 		headLen += net.IPv6len + 2
 		if len(b) <= headLen {
 			return errors.New("too short")
@@ -112,8 +112,8 @@ func (sf *Packet) Header() []byte {
 	case ATYPIPv4:
 		bs = append(bs, ATYPIPv4)
 		bs = append(bs, sf.DstAddr.IP...)
-	case ATYPIPV6:
-		bs = append(bs, ATYPIPV6)
+	case ATYPIPv6:
+		bs = append(bs, ATYPIPv6)
 		bs = append(bs, sf.DstAddr.IP...)
 	case ATYPDomain:
 		bs = append(bs, ATYPDomain)

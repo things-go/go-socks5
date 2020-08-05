@@ -110,18 +110,27 @@ func (s *Server) Serve(l net.Listener) error {
 }
 
 // ServeConn is used to serve a single connection.
-func (s *Server) ServeConn(conn net.Conn) (err error) {
+func (s *Server) ServeConn(conn net.Conn) error {
 	defer conn.Close()
 	bufConn := bufio.NewReader(conn)
 
+	/*
+		The SOCKS handshake is formed as follows:
+		+-----+----------+---------------+
+		| VER | NMETHODS |    METHODS    |
+		+-----+----------+---------------+
+		|  1  |     1    | X'00' - X'FF' |
+		+-----+----------+---------------+
+	*/
 	// Read the version byte
 	version := []byte{0}
-	if _, err = bufConn.Read(version); err != nil {
+	if _, err := bufConn.Read(version); err != nil {
 		s.logger.Errorf("failed to get version byte: %v", err)
 		return err
 	}
 
 	var authContext *AuthContext
+	var err error
 	// Ensure we are compatible
 	if version[0] == VersionSocks5 {
 		// Authenticate the connection
@@ -137,6 +146,7 @@ func (s *Server) ServeConn(conn net.Conn) (err error) {
 		return err
 	}
 
+	// The client request detail
 	request, err := NewRequest(bufConn)
 	if err != nil {
 		if err == errUnrecognizedAddrType {
@@ -157,7 +167,6 @@ func (s *Server) ServeConn(conn net.Conn) (err error) {
 		s.logger.Errorf("%v", err)
 		return err
 	}
-
 	return nil
 }
 

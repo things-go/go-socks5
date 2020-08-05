@@ -200,7 +200,7 @@ func TestSOCKS5_Associate(t *testing.T) {
 		t.Fatalf("bad: %v", out)
 	}
 
-	rspHead, err := Parse(conn)
+	rspHead, err := ParseHeader(conn)
 	if err != nil {
 		t.Fatalf("bad response header: %v", err)
 	}

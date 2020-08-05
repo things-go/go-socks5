@@ -15,4 +15,5 @@ func main() {
 	if err := server.ListenAndServe("tcp", "127.0.0.1:1080"); err != nil {
 		panic(err)
 	}
+
 }
