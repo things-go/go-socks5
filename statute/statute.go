@@ -3,7 +3,7 @@ package statute
 // auth defined
 const (
 	MethodNoAuth       = byte(0x00)
-	MethodGSSAPI       = byte(0x01)
+	MethodGSSAPI       = byte(0x01) // TODO: not support now
 	MethodUserPassAuth = byte(0x02)
 	MethodNoAcceptable = byte(0xff)
 	// user password version

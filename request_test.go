@@ -53,10 +53,9 @@ func TestRequest_Connect(t *testing.T) {
 	}
 
 	// Create the connect request
-	hi, lo := statute.BreakPort(lAddr.Port)
 	buf := bytes.NewBuffer([]byte{
 		statute.VersionSocks5, statute.CommandConnect, 0,
-		statute.ATYPIPv4, 127, 0, 0, 1, hi, lo,
+		statute.ATYPIPv4, 127, 0, 0, 1, byte(lAddr.Port >> 8), byte(lAddr.Port),
 	})
 	// Send a ping
 	buf.Write([]byte("ping")) // nolint: errcheck
@@ -111,10 +110,9 @@ func TestRequest_Connect_RuleFail(t *testing.T) {
 	}
 
 	// Create the connect request
-	hi, lo := statute.BreakPort(lAddr.Port)
 	buf := bytes.NewBuffer([]byte{
 		statute.VersionSocks5, statute.CommandConnect, 0,
-		statute.ATYPIPv4, 127, 0, 0, 1, hi, lo,
+		statute.ATYPIPv4, 127, 0, 0, 1, byte(lAddr.Port >> 8), byte(lAddr.Port),
 	})
 
 	// Send a ping

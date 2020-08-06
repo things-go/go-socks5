@@ -15,7 +15,7 @@ import (
 // Datagram udp packet
 type Datagram struct {
 	RSV     uint16
-	Frag    uint8
+	Frag    byte
 	DstAddr AddrSpec
 	Data    []byte
 }
@@ -30,29 +30,26 @@ func NewDatagram(destAddr string, data []byte) (p Datagram, err error) {
 		err = errors.New("destination host name too long")
 		return
 	}
-	p.RSV = 0
-	p.Frag = 0
-	p.Data = data
+	p.RSV, p.Frag, p.Data = 0, 0, data
 	return
 }
 
-// ParseRequest parse to packet
+// ParseRequest parse to datagram
 func ParseDatagram(b []byte) (da Datagram, err error) {
-	if len(b) < 4+net.IPv4len+2 { // no data
+	if len(b) < 4+net.IPv4len+2 { // no enough data
 		err = errors.New("datagram to short")
 		return
 	}
 	// ignore RSV
-	da.RSV = 0
-	// FRAG
-	da.Frag = b[2]
-	da.DstAddr.AddrType = b[3]
+	// get FRAG and Address  type
+	da.RSV, da.Frag, da.DstAddr.AddrType = 0, b[2], b[3]
+
 	headLen := 4
 	switch da.DstAddr.AddrType {
 	case ATYPIPv4:
 		headLen += net.IPv4len + 2
 		da.DstAddr.IP = net.IPv4(b[4], b[5], b[6], b[7])
-		da.DstAddr.Port = BuildPort(b[4+net.IPv4len], b[4+net.IPv4len+1])
+		da.DstAddr.Port = buildPort(b[4+net.IPv4len], b[4+net.IPv4len+1])
 	case ATYPIPv6:
 		headLen += net.IPv6len + 2
 		if len(b) <= headLen {
@@ -60,8 +57,8 @@ func ParseDatagram(b []byte) (da Datagram, err error) {
 			return
 		}
 
-		da.DstAddr.IP = net.IP{b[4], b[5], b[6], b[7], b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15], b[16], b[17], b[18], b[19]}
-		da.DstAddr.Port = BuildPort(b[4+net.IPv6len], b[4+net.IPv6len+1])
+		da.DstAddr.IP = b[4 : 4+net.IPv6len]
+		da.DstAddr.Port = buildPort(b[4+net.IPv6len], b[4+net.IPv6len+1])
 	case ATYPDomain:
 		addrLen := int(b[4])
 		headLen += 1 + addrLen + 2
@@ -72,7 +69,7 @@ func ParseDatagram(b []byte) (da Datagram, err error) {
 		str := make([]byte, addrLen)
 		copy(str, b[5:5+addrLen])
 		da.DstAddr.FQDN = string(str)
-		da.DstAddr.Port = BuildPort(b[5+addrLen], b[5+addrLen+1])
+		da.DstAddr.Port = buildPort(b[5+addrLen], b[5+addrLen+1])
 	default:
 		err = ErrUnrecognizedAddrType
 		return
@@ -81,26 +78,46 @@ func ParseDatagram(b []byte) (da Datagram, err error) {
 	return
 }
 
-// Request returns s slice of datagram header except data
+// Header returns s slice of datagram header except data
 func (sf *Datagram) Header() []byte {
-	bs := make([]byte, 0, 32)
-	bs = append(bs, []byte{byte(sf.RSV << 8), byte(sf.RSV), sf.Frag}...)
-	switch sf.DstAddr.AddrType {
-	case ATYPIPv4:
-		bs = append(bs, ATYPIPv4)
-		bs = append(bs, sf.DstAddr.IP.To4()...)
-	case ATYPIPv6:
-		bs = append(bs, ATYPIPv6)
-		bs = append(bs, sf.DstAddr.IP.To16()...)
-	case ATYPDomain:
-		bs = append(bs, ATYPDomain, byte(len(sf.DstAddr.FQDN)))
-		bs = append(bs, []byte(sf.DstAddr.FQDN)...)
-	}
-	hi, lo := BreakPort(sf.DstAddr.Port)
-	bs = append(bs, hi, lo)
-	return bs
+	return sf.values(false)
 }
 
+// Bytes datagram to bytes
 func (sf *Datagram) Bytes() []byte {
-	return append(sf.Header(), sf.Data...)
+	return sf.values(true)
+}
+
+func (sf *Datagram) values(hasData bool) (bs []byte) {
+	var addr []byte
+
+	length := 6
+	switch sf.DstAddr.AddrType {
+	case ATYPIPv4:
+		length += net.IPv4len
+		addr = sf.DstAddr.IP.To4()
+	case ATYPIPv6:
+		length += net.IPv6len
+		addr = sf.DstAddr.IP.To16()
+	case ATYPDomain:
+		length += 1 + len(sf.DstAddr.FQDN)
+		addr = []byte(sf.DstAddr.FQDN)
+	}
+	if hasData {
+		bs = make([]byte, 0, length+len(sf.Data))
+	} else {
+		bs = make([]byte, 0, length)
+	}
+
+	bs = append(bs, byte(sf.RSV<<8), byte(sf.RSV), sf.Frag, sf.DstAddr.AddrType)
+	if sf.DstAddr.AddrType == ATYPDomain {
+		bs = append(bs, byte(len(sf.DstAddr.FQDN)))
+	}
+	bs = append(bs, addr...)
+	hi, lo := breakPort(sf.DstAddr.Port)
+	bs = append(bs, hi, lo)
+	if hasData {
+		bs = append(bs, sf.Data...)
+	}
+	return
 }

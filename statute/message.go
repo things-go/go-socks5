@@ -15,11 +15,11 @@ import (
 //	+-----+-----+-------+------+----------+----------+
 type Request struct {
 	// Version of socks protocol for message
-	Version uint8
+	Version byte
 	// Socks Command "connect","bind","associate"
-	Command uint8
+	Command byte
 	// Reserved byte
-	Reserved uint8
+	Reserved byte
 	// DstAddress in socks message
 	DstAddress AddrSpec
 }
@@ -31,19 +31,32 @@ func ParseRequest(r io.Reader) (req Request, err error) {
 	if _, err = io.ReadFull(r, tmp); err != nil {
 		return req, fmt.Errorf("failed to get request version and command, %v", err)
 	}
-	req.Version = tmp[0]
-	req.Command = tmp[1]
+	req.Version, req.Command = tmp[0], tmp[1]
 	if req.Version != VersionSocks5 {
 		return req, fmt.Errorf("unrecognized SOCKS version[%d]", req.Version)
 	}
+
 	// Read reserved and address type
 	if _, err = io.ReadFull(r, tmp); err != nil {
 		return req, fmt.Errorf("failed to get request RSV and address type, %v", err)
 	}
-	req.Reserved = tmp[0]
-	req.DstAddress.AddrType = tmp[1]
+	req.Reserved, req.DstAddress.AddrType = tmp[0], tmp[1]
 
 	switch req.DstAddress.AddrType {
+	case ATYPIPv4:
+		addr := make([]byte, net.IPv4len+2)
+		if _, err = io.ReadFull(r, addr); err != nil {
+			return req, fmt.Errorf("failed to get request, %v", err)
+		}
+		req.DstAddress.IP = net.IPv4(addr[0], addr[1], addr[2], addr[3])
+		req.DstAddress.Port = buildPort(addr[net.IPv4len], addr[net.IPv4len+1])
+	case ATYPIPv6:
+		addr := make([]byte, net.IPv6len+2)
+		if _, err = io.ReadFull(r, addr); err != nil {
+			return req, fmt.Errorf("failed to get request, %v", err)
+		}
+		req.DstAddress.IP = addr[:net.IPv6len]
+		req.DstAddress.Port = buildPort(addr[net.IPv6len], addr[net.IPv6len+1])
 	case ATYPDomain:
 		if _, err = io.ReadFull(r, tmp[:1]); err != nil {
 			return req, fmt.Errorf("failed to get request, %v", err)
@@ -54,21 +67,7 @@ func ParseRequest(r io.Reader) (req Request, err error) {
 			return req, fmt.Errorf("failed to get request, %v", err)
 		}
 		req.DstAddress.FQDN = string(addr[:domainLen])
-		req.DstAddress.Port = BuildPort(addr[domainLen], addr[domainLen+1])
-	case ATYPIPv4:
-		addr := make([]byte, net.IPv4len+2)
-		if _, err = io.ReadFull(r, addr); err != nil {
-			return req, fmt.Errorf("failed to get request, %v", err)
-		}
-		req.DstAddress.IP = net.IPv4(addr[0], addr[1], addr[2], addr[3])
-		req.DstAddress.Port = BuildPort(addr[net.IPv4len], addr[net.IPv4len+1])
-	case ATYPIPv6:
-		addr := make([]byte, net.IPv6len+2)
-		if _, err = io.ReadFull(r, addr); err != nil {
-			return req, fmt.Errorf("failed to get request, %v", err)
-		}
-		req.DstAddress.IP = addr[:net.IPv6len]
-		req.DstAddress.Port = BuildPort(addr[net.IPv6len], addr[net.IPv6len+1])
+		req.DstAddress.Port = buildPort(addr[domainLen], addr[domainLen+1])
 	default:
 		return req, ErrUnrecognizedAddrType
 	}
@@ -92,15 +91,12 @@ func (h Request) Bytes() (b []byte) {
 	}
 
 	b = make([]byte, 0, length)
-	b = append(b, h.Version)
-	b = append(b, h.Command)
-	b = append(b, h.Reserved)
-	b = append(b, h.DstAddress.AddrType)
+	b = append(b, h.Version, h.Command, h.Reserved, h.DstAddress.AddrType)
 	if h.DstAddress.AddrType == ATYPDomain {
 		b = append(b, byte(len(h.DstAddress.FQDN)))
 	}
 	b = append(b, addr...)
-	hiPort, loPort := BreakPort(h.DstAddress.Port)
+	hiPort, loPort := breakPort(h.DstAddress.Port)
 	b = append(b, hiPort, loPort)
 	return b
 }
@@ -114,11 +110,11 @@ func (h Request) Bytes() (b []byte) {
 //	+-----+-----+-------+------+----------+----------+
 type Reply struct {
 	// Version of socks protocol for message
-	Version uint8
+	Version byte
 	// Socks Response status"
-	Response uint8
+	Response byte
 	// Reserved byte
-	Reserved uint8
+	Reserved byte
 	// Bind Address in socks message
 	BndAddress AddrSpec
 }
@@ -140,15 +136,12 @@ func (h Reply) Bytes() (b []byte) {
 	}
 
 	b = make([]byte, 0, length)
-	b = append(b, h.Version)
-	b = append(b, h.Response)
-	b = append(b, h.Reserved)
-	b = append(b, h.BndAddress.AddrType)
+	b = append(b, h.Version, h.Response, h.Reserved, h.BndAddress.AddrType)
 	if h.BndAddress.AddrType == ATYPDomain {
 		b = append(b, byte(len(h.BndAddress.FQDN)))
 	}
 	b = append(b, addr...)
-	hiPort, loPort := BreakPort(h.BndAddress.Port)
+	hiPort, loPort := breakPort(h.BndAddress.Port)
 	b = append(b, hiPort, loPort)
 	return b
 }
@@ -160,8 +153,7 @@ func ParseReply(r io.Reader) (rep Reply, err error) {
 	if _, err = io.ReadFull(r, tmp); err != nil {
 		return rep, fmt.Errorf("failed to get request version and command, %v", err)
 	}
-	rep.Version = tmp[0]
-	rep.Response = tmp[1]
+	rep.Version, rep.Response = tmp[0], tmp[1]
 	if rep.Version != VersionSocks5 {
 		return rep, fmt.Errorf("unrecognized SOCKS version[%d]", rep.Version)
 	}
@@ -169,8 +161,7 @@ func ParseReply(r io.Reader) (rep Reply, err error) {
 	if _, err = io.ReadFull(r, tmp); err != nil {
 		return rep, fmt.Errorf("failed to get request RSV and address type, %v", err)
 	}
-	rep.Reserved = tmp[0]
-	rep.BndAddress.AddrType = tmp[1]
+	rep.Reserved, rep.BndAddress.AddrType = tmp[0], tmp[1]
 
 	switch rep.BndAddress.AddrType {
 	case ATYPDomain:
@@ -183,21 +174,21 @@ func ParseReply(r io.Reader) (rep Reply, err error) {
 			return rep, fmt.Errorf("failed to get request, %v", err)
 		}
 		rep.BndAddress.FQDN = string(addr[:domainLen])
-		rep.BndAddress.Port = BuildPort(addr[domainLen], addr[domainLen+1])
+		rep.BndAddress.Port = buildPort(addr[domainLen], addr[domainLen+1])
 	case ATYPIPv4:
 		addr := make([]byte, net.IPv4len+2)
 		if _, err = io.ReadFull(r, addr); err != nil {
 			return rep, fmt.Errorf("failed to get request, %v", err)
 		}
 		rep.BndAddress.IP = net.IPv4(addr[0], addr[1], addr[2], addr[3])
-		rep.BndAddress.Port = BuildPort(addr[net.IPv4len], addr[net.IPv4len+1])
+		rep.BndAddress.Port = buildPort(addr[net.IPv4len], addr[net.IPv4len+1])
 	case ATYPIPv6:
 		addr := make([]byte, net.IPv6len+2)
 		if _, err = io.ReadFull(r, addr); err != nil {
 			return rep, fmt.Errorf("failed to get request, %v", err)
 		}
 		rep.BndAddress.IP = addr[:net.IPv6len]
-		rep.BndAddress.Port = BuildPort(addr[net.IPv6len], addr[net.IPv6len+1])
+		rep.BndAddress.Port = buildPort(addr[net.IPv6len], addr[net.IPv6len+1])
 	default:
 		return rep, ErrUnrecognizedAddrType
 	}

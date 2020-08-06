@@ -13,7 +13,7 @@ type AddrSpec struct {
 	IP   net.IP
 	Port int
 	// private stuff set when Request parsed
-	AddrType uint8
+	AddrType byte
 }
 
 // DstAddress returns a string suitable to dial; prefer returning IP-based
@@ -37,7 +37,7 @@ func (a AddrSpec) Address() string {
 }
 
 // ParseAddrSpec parse address to the AddrSpec address
-func ParseAddrSpec(address string) (a AddrSpec, err error) {
+func ParseAddrSpec(address string) (as AddrSpec, err error) {
 	var host, port string
 
 	host, port, err = net.SplitHostPort(address)
@@ -46,18 +46,15 @@ func ParseAddrSpec(address string) (a AddrSpec, err error) {
 	}
 	ip := net.ParseIP(host)
 	if ip4 := ip.To4(); ip4 != nil {
-		a.AddrType = ATYPIPv4
-		a.IP = ip
+		as.AddrType, as.IP = ATYPIPv4, ip
 	} else if ip6 := ip.To16(); ip6 != nil {
-		a.AddrType = ATYPIPv6
-		a.IP = ip
+		as.AddrType, as.IP = ATYPIPv6, ip
 	} else {
-		a.AddrType = ATYPDomain
-		a.FQDN = host
+		as.AddrType, as.FQDN = ATYPDomain, host
 	}
-	a.Port, err = strconv.Atoi(port)
+	as.Port, err = strconv.Atoi(port)
 	return
 }
 
-func BuildPort(hi, lo byte) int        { return (int(hi) << 8) | int(lo) }
-func BreakPort(port int) (hi, lo byte) { return byte(port >> 8), byte(port) }
+func buildPort(hi, lo byte) int        { return (int(hi) << 8) | int(lo) }
+func breakPort(port int) (hi, lo byte) { return byte(port >> 8), byte(port) }

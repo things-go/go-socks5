@@ -9,9 +9,9 @@ import (
 )
 
 func TestUserPassRequest(t *testing.T) {
-	userpass := NewUserPassRequest(UserPassAuthVersion, []byte("user"), []byte("password"))
 	want := []byte{UserPassAuthVersion, 4, 'u', 's', 'e', 'r', 8, 'p', 'a', 's', 's', 'w', 'o', 'r', 'd'}
 
+	userpass := NewUserPassRequest(UserPassAuthVersion, []byte("user"), []byte("password"))
 	assert.Equal(t, want, userpass.Bytes())
 
 	upr, err := ParseUserPassRequest(bytes.NewReader(want))
@@ -21,6 +21,7 @@ func TestUserPassRequest(t *testing.T) {
 
 func TestUserPassReply(t *testing.T) {
 	reader := bytes.NewReader([]byte{UserPassAuthVersion, AuthSuccess})
+
 	upr, err := ParseUserPassReply(reader)
 	require.NoError(t, err)
 	assert.Equal(t, UserPassReply{UserPassAuthVersion, AuthSuccess}, upr)

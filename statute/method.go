@@ -34,20 +34,22 @@ func ParseMethodRequest(r io.Reader) (mr MethodRequest, err error) {
 		return
 	}
 	mr.Ver = tmp[0]
+
 	// Read number method
 	if _, err = r.Read(tmp); err != nil {
 		return
 	}
-	mr.NMethods = tmp[0]
-	mr.Methods = make([]byte, mr.NMethods)
+	mr.NMethods, mr.Methods = tmp[0], make([]byte, tmp[0])
+	// read methods
 	_, err = io.ReadAtLeast(r, mr.Methods, int(mr.NMethods))
 	return
 }
 
-func (n MethodRequest) Bytes() []byte {
-	b := make([]byte, 0, 2+n.NMethods)
-	b = append(b, n.Ver, n.NMethods)
-	b = append(b, n.Methods...)
+// Bytes method request to bytes
+func (sf MethodRequest) Bytes() []byte {
+	b := make([]byte, 0, 2+sf.NMethods)
+	b = append(b, sf.Ver, sf.NMethods)
+	b = append(b, sf.Methods...)
 	return b
 }
 
@@ -69,7 +71,6 @@ func ParseMethodReply(r io.Reader) (n MethodReply, err error) {
 	if _, err = io.ReadFull(r, bb); err != nil {
 		return
 	}
-	n.Ver = bb[0]
-	n.Method = bb[1]
+	n.Ver, n.Method = bb[0], bb[1]
 	return
 }
