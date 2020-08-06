@@ -33,14 +33,11 @@ type Request struct {
 	RawDestAddr *statute.AddrSpec
 }
 
-// NewRequest creates a new Request from the tcp connection
-func NewRequest(bufConn io.Reader) (*Request, error) {
+// ParseRequest creates a new Request from the tcp connection
+func ParseRequest(bufConn io.Reader) (*Request, error) {
 	hd, err := statute.ParseRequest(bufConn)
 	if err != nil {
 		return nil, err
-	}
-	if hd.Command != statute.CommandConnect && hd.Command != statute.CommandBind && hd.Command != statute.CommandAssociate {
-		return nil, fmt.Errorf("unrecognized command[%d]", hd.Command)
 	}
 	return &Request{
 		Request:     hd,
@@ -51,20 +48,19 @@ func NewRequest(bufConn io.Reader) (*Request, error) {
 
 // handleRequest is used for request processing after authentication
 func (s *Server) handleRequest(write io.Writer, req *Request) error {
+	var err error
 	ctx := context.Background()
 
 	// Resolve the address if we have a FQDN
 	dest := req.RawDestAddr
 	if dest.FQDN != "" {
-		_ctx, addr, err := s.resolver.Resolve(ctx, dest.FQDN)
+		ctx, dest.IP, err = s.resolver.Resolve(ctx, dest.FQDN)
 		if err != nil {
-			if err := SendReply(write, req.Request, statute.RepHostUnreachable); err != nil {
+			if err := SendReply(write, statute.RepHostUnreachable, nil); err != nil {
 				return fmt.Errorf("failed to send reply, %v", err)
 			}
 			return fmt.Errorf("failed to resolve destination[%v], %v", dest.FQDN, err)
 		}
-		ctx = _ctx
-		dest.IP = addr
 	}
 
 	// Apply any address rewrites
@@ -74,14 +70,14 @@ func (s *Server) handleRequest(write io.Writer, req *Request) error {
 	}
 
 	// Check if this is allowed
-	_ctx, ok := s.rules.Allow(ctx, req)
+	var ok bool
+	ctx, ok = s.rules.Allow(ctx, req)
 	if !ok {
-		if err := SendReply(write, req.Request, statute.RepRuleFailure); err != nil {
+		if err := SendReply(write, statute.RepRuleFailure, nil); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
 		}
 		return fmt.Errorf("bind to %v blocked by rules", req.RawDestAddr)
 	}
-	ctx = _ctx
 
 	// Switch on the command
 	switch req.Command {
@@ -101,7 +97,7 @@ func (s *Server) handleRequest(write io.Writer, req *Request) error {
 		}
 		return s.handleAssociate(ctx, write, req)
 	default:
-		if err := SendReply(write, req.Request, statute.RepCommandNotSupported); err != nil {
+		if err := SendReply(write, statute.RepCommandNotSupported, nil); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
 		}
 		return fmt.Errorf("unsupported command[%v]", req.Command)
@@ -126,7 +122,7 @@ func (s *Server) handleConnect(ctx context.Context, writer io.Writer, request *R
 		} else if strings.Contains(msg, "network is unreachable") {
 			resp = statute.RepNetworkUnreachable
 		}
-		if err := SendReply(writer, request.Request, resp); err != nil {
+		if err := SendReply(writer, resp, nil); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
 		}
 		return fmt.Errorf("connect to %v failed, %v", request.RawDestAddr, err)
@@ -134,7 +130,7 @@ func (s *Server) handleConnect(ctx context.Context, writer io.Writer, request *R
 	defer target.Close()
 
 	// Send success
-	if err := SendReply(writer, request.Request, statute.RepSuccess, target.LocalAddr()); err != nil {
+	if err := SendReply(writer, statute.RepSuccess, target.LocalAddr()); err != nil {
 		return fmt.Errorf("failed to send reply, %v", err)
 	}
 
@@ -156,7 +152,7 @@ func (s *Server) handleConnect(ctx context.Context, writer io.Writer, request *R
 // handleBind is used to handle a connect command
 func (s *Server) handleBind(_ context.Context, writer io.Writer, request *Request) error {
 	// TODO: Support bind
-	if err := SendReply(writer, request.Request, statute.RepCommandNotSupported); err != nil {
+	if err := SendReply(writer, statute.RepCommandNotSupported, nil); err != nil {
 		return fmt.Errorf("failed to send reply: %v", err)
 	}
 	return nil
@@ -180,7 +176,7 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, request 
 		} else if strings.Contains(msg, "network is unreachable") {
 			resp = statute.RepNetworkUnreachable
 		}
-		if err := SendReply(writer, request.Request, resp); err != nil {
+		if err := SendReply(writer, resp, nil); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
 		}
 		return fmt.Errorf("connect to %v failed, %v", request.RawDestAddr, err)
@@ -189,7 +185,7 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, request 
 
 	targetUDP, ok := target.(*net.UDPConn)
 	if !ok {
-		if err := SendReply(writer, request.Request, statute.RepServerFailure); err != nil {
+		if err := SendReply(writer, statute.RepServerFailure, nil); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
 		}
 		return fmt.Errorf("dial udp invalid")
@@ -197,7 +193,7 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, request 
 
 	bindLn, err := net.ListenUDP("udp", nil)
 	if err != nil {
-		if err := SendReply(writer, request.Request, statute.RepServerFailure); err != nil {
+		if err := SendReply(writer, statute.RepServerFailure, nil); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
 		}
 		return fmt.Errorf("listen udp failed, %v", err)
@@ -206,19 +202,11 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, request 
 
 	s.logger.Errorf("target addr %v, listen addr: %s", targetUDP.RemoteAddr(), bindLn.LocalAddr())
 	// send BND.ADDR and BND.PORT, client must
-	if err = SendReply(writer, request.Request, statute.RepSuccess, bindLn.LocalAddr()); err != nil {
+	if err = SendReply(writer, statute.RepSuccess, bindLn.LocalAddr()); err != nil {
 		return fmt.Errorf("failed to send reply, %v", err)
 	}
 
 	s.submit(func() {
-		/*
-			The SOCKS UDP request/response is formed as follows:
-			+-----+------+-------+----------+----------+----------+
-			| RSV | FRAG |  ATYP | DST.ADDR | DST.PORT |   DATA   |
-			+-----+------+-------+----------+----------+----------+
-			|  2  |  1   | X'00' | Variable |     2    | Variable |
-			+-----+------+-------+----------+----------+----------+
-		*/
 		// read from client and write to remote server
 		conns := sync.Map{}
 		bufPool := s.bufferPool.Get()
@@ -237,8 +225,8 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, request 
 				continue
 			}
 
-			pk := statute.Packet{}
-			if err := pk.Parse(bufPool[:n]); err != nil {
+			pk, err := statute.ParseDatagram(bufPool[:n])
+			if err != nil {
 				continue
 			}
 
@@ -260,7 +248,7 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, request 
 							return
 						}
 
-						pkb, err := statute.NewPacket(remote.String(), buf[:n])
+						pkb, err := statute.NewDatagram(remote.String(), buf[:n])
 						if err != nil {
 							continue
 						}
@@ -301,45 +289,35 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, request 
 }
 
 // SendReply is used to send a reply message
-func SendReply(w io.Writer, head statute.Request, resp uint8, bindAddr ...net.Addr) error {
-	head.Command = resp
+func SendReply(w io.Writer, resp uint8, bindAddr net.Addr) error {
+	rsp := statute.Reply{
+		Version:  statute.VersionSocks5,
+		Response: resp,
+		BndAddress: statute.AddrSpec{
+			AddrType: statute.ATYPIPv4,
+			IP:       net.IPv4zero,
+			Port:     0,
+		},
+	}
 
-	if len(bindAddr) == 0 {
-		head.DstAddress.AddrType = statute.ATYPIPv4
-		head.DstAddress.IP = []byte{0, 0, 0, 0}
-		head.DstAddress.Port = 0
-	} else {
-		addrSpec := statute.AddrSpec{}
-		if tcpAddr, ok := bindAddr[0].(*net.TCPAddr); ok && tcpAddr != nil {
-			addrSpec.IP = tcpAddr.IP
-			addrSpec.Port = tcpAddr.Port
-		} else if udpAddr, ok := bindAddr[0].(*net.UDPAddr); ok && udpAddr != nil {
-			addrSpec.IP = udpAddr.IP
-			addrSpec.Port = udpAddr.Port
+	if rsp.Response == statute.RepSuccess {
+		if tcpAddr, ok := bindAddr.(*net.TCPAddr); ok && tcpAddr != nil {
+			rsp.BndAddress.IP = tcpAddr.IP
+			rsp.BndAddress.Port = tcpAddr.Port
+		} else if udpAddr, ok := bindAddr.(*net.UDPAddr); ok && udpAddr != nil {
+			rsp.BndAddress.IP = udpAddr.IP
+			rsp.BndAddress.Port = udpAddr.Port
 		} else {
-			addrSpec.IP = []byte{0, 0, 0, 0}
-			addrSpec.Port = 0
+			rsp.Response = statute.RepAddrTypeNotSupported
 		}
-		switch {
-		case addrSpec.FQDN != "":
-			head.DstAddress.AddrType = statute.ATYPDomain
-			head.DstAddress.FQDN = addrSpec.FQDN
-			head.DstAddress.Port = addrSpec.Port
-		case addrSpec.IP.To4() != nil:
-			head.DstAddress.AddrType = statute.ATYPIPv4
-			head.DstAddress.IP = addrSpec.IP.To4()
-			head.DstAddress.Port = addrSpec.Port
-		case addrSpec.IP.To16() != nil:
-			head.DstAddress.AddrType = statute.ATYPIPv6
-			head.DstAddress.IP = addrSpec.IP.To16()
-			head.DstAddress.Port = addrSpec.Port
-		default:
-			return fmt.Errorf("failed to format address[%v]", bindAddr)
+		if rsp.BndAddress.IP.To4() != nil {
+			rsp.BndAddress.AddrType = statute.ATYPIPv4
+		} else if rsp.BndAddress.IP.To16() != nil {
+			rsp.BndAddress.AddrType = statute.ATYPIPv6
 		}
-
 	}
 	// Send the message
-	_, err := w.Write(head.Bytes())
+	_, err := w.Write(rsp.Bytes())
 	return err
 }
 
@@ -354,7 +332,7 @@ func (s *Server) Proxy(dst io.Writer, src io.Reader) error {
 	defer s.bufferPool.Put(buf)
 	_, err := io.CopyBuffer(dst, src, buf[:cap(buf)])
 	if tcpConn, ok := dst.(closeWriter); ok {
-		tcpConn.CloseWrite()
+		tcpConn.CloseWrite() // nolint: errcheck
 	}
 	return err
 }

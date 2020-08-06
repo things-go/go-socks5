@@ -2,7 +2,6 @@ package socks5
 
 import (
 	"bytes"
-	"encoding/binary"
 	"io"
 	"log"
 	"net"
@@ -10,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/thinkgos/go-socks5/statute"
 )
 
 type MockConn struct {
@@ -32,7 +33,7 @@ func TestRequest_Connect(t *testing.T) {
 	go func() {
 		conn, err := l.Accept()
 		require.NoError(t, err)
-		defer conn.Close()
+		defer conn.Close() // nolint: errcheck
 
 		buf := make([]byte, 4)
 		_, err = io.ReadAtLeast(conn, buf, 4)
@@ -43,7 +44,7 @@ func TestRequest_Connect(t *testing.T) {
 	}()
 	lAddr := l.Addr().(*net.TCPAddr)
 
-	// Make server
+	// Make proxy server
 	proxySrv := &Server{
 		rules:      NewPermitAll(),
 		resolver:   DNSResolver{},
@@ -52,33 +53,27 @@ func TestRequest_Connect(t *testing.T) {
 	}
 
 	// Create the connect request
-	buf := bytes.NewBuffer(nil)
-	buf.Write([]byte{5, 1, 0, 1, 127, 0, 0, 1}) // nolint: errcheck
-
-	port := []byte{0, 0}
-	binary.BigEndian.PutUint16(port, uint16(lAddr.Port))
-	buf.Write(port) // nolint: errcheck
-
+	hi, lo := statute.BreakPort(lAddr.Port)
+	buf := bytes.NewBuffer([]byte{
+		statute.VersionSocks5, statute.CommandConnect, 0,
+		statute.ATYPIPv4, 127, 0, 0, 1, hi, lo,
+	})
 	// Send a ping
 	buf.Write([]byte("ping")) // nolint: errcheck
 
 	// Handle the request
-	resp := &MockConn{}
-	req, err := NewRequest(buf)
+	rsp := new(MockConn)
+	req, err := ParseRequest(buf)
 	require.NoError(t, err)
 
-	err = proxySrv.handleRequest(resp, req)
+	err = proxySrv.handleRequest(rsp, req)
 	require.NoError(t, err)
 
 	// Verify response
-	out := resp.buf.Bytes()
+	out := rsp.buf.Bytes()
 	expected := []byte{
-		5,
-		0,
-		0,
-		1,
-		127, 0, 0, 1,
-		0, 0,
+		statute.VersionSocks5, statute.RepSuccess, 0,
+		statute.ATYPIPv4, 127, 0, 0, 1, 0, 0,
 		'p', 'o', 'n', 'g',
 	}
 
@@ -102,6 +97,7 @@ func TestRequest_Connect_RuleFail(t *testing.T) {
 		_, err = io.ReadAtLeast(conn, buf, 4)
 		require.NoError(t, err)
 		require.Equal(t, []byte("ping"), buf)
+
 		conn.Write([]byte("pong")) // nolint: errcheck
 	}()
 	lAddr := l.Addr().(*net.TCPAddr)
@@ -115,33 +111,28 @@ func TestRequest_Connect_RuleFail(t *testing.T) {
 	}
 
 	// Create the connect request
-	buf := bytes.NewBuffer(nil)
-	buf.Write([]byte{5, 1, 0, 1, 127, 0, 0, 1})
-
-	port := []byte{0, 0}
-	binary.BigEndian.PutUint16(port, uint16(lAddr.Port))
-	buf.Write(port)
+	hi, lo := statute.BreakPort(lAddr.Port)
+	buf := bytes.NewBuffer([]byte{
+		statute.VersionSocks5, statute.CommandConnect, 0,
+		statute.ATYPIPv4, 127, 0, 0, 1, hi, lo,
+	})
 
 	// Send a ping
 	buf.Write([]byte("ping"))
 
 	// Handle the request
-	resp := &MockConn{}
-	req, err := NewRequest(buf)
+	rsp := new(MockConn)
+	req, err := ParseRequest(buf)
 	require.NoError(t, err)
 
-	err = s.handleRequest(resp, req)
+	err = s.handleRequest(rsp, req)
 	require.Contains(t, err.Error(), "blocked by rules")
 
 	// Verify response
-	out := resp.buf.Bytes()
+	out := rsp.buf.Bytes()
 	expected := []byte{
-		5,
-		2,
-		0,
-		1,
-		0, 0, 0, 0,
-		0, 0,
+		statute.VersionSocks5, statute.RepRuleFailure, 0,
+		statute.ATYPIPv4, 0, 0, 0, 0, 0, 0,
 	}
 	require.Equal(t, expected, out)
 }

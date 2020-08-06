@@ -88,8 +88,7 @@ func (c *Client) Read(b []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	pkt := statute.Packet{}
-	err = pkt.Parse(b1[:n])
+	pkt, err := statute.ParseDatagram(b1[:n])
 	if err != nil {
 		return 0, err
 	}
@@ -101,7 +100,7 @@ func (c *Client) Write(b []byte) (int, error) {
 	if c.UDPConn == nil {
 		return c.TCPConn.Write(b)
 	}
-	pkt, err := statute.NewPacket(c.RemoteAddress.String(), b)
+	pkt, err := statute.NewDatagram(c.RemoteAddress.String(), b)
 	if err != nil {
 		return 0, err
 	}

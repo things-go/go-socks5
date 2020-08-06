@@ -3,6 +3,7 @@ package socks5
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -116,6 +117,7 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	var authContext *AuthContext
 
 	defer conn.Close()
+
 	bufConn := bufio.NewReader(conn)
 
 	mr, err := statute.ParseMethodRequest(bufConn)
@@ -133,24 +135,30 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	}
 
 	// The client request detail
-	request, err := NewRequest(bufConn)
+	request, err := ParseRequest(bufConn)
 	if err != nil {
-		if err == statute.ErrUnrecognizedAddrType {
-			if err := SendReply(conn, statute.Request{Version: mr.Ver}, statute.RepAddrTypeNotSupported); err != nil {
+		if errors.Is(err, statute.ErrUnrecognizedAddrType) {
+			if err := SendReply(conn, statute.RepAddrTypeNotSupported, nil); err != nil {
 				return fmt.Errorf("failed to send reply %w", err)
 			}
 		}
 		return fmt.Errorf("failed to read destination address, %w", err)
 	}
 
+	if request.Request.Command != statute.CommandConnect &&
+		request.Request.Command != statute.CommandBind &&
+		request.Request.Command != statute.CommandAssociate {
+		if err := SendReply(conn, statute.RepCommandNotSupported, nil); err != nil {
+			return fmt.Errorf("failed to send reply, %v", err)
+		}
+		return fmt.Errorf("unrecognized command[%d]", request.Request.Command)
+	}
+
 	request.AuthContext = authContext
 	request.LocalAddr = conn.LocalAddr()
 	request.RemoteAddr = conn.RemoteAddr()
 	// Process the client request
-	if err := s.handleRequest(conn, request); err != nil {
-		return fmt.Errorf("failed to handle request, %v", err)
-	}
-	return nil
+	return s.handleRequest(conn, request)
 }
 
 // authenticate is used to handle connection authentication

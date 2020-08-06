@@ -31,11 +31,12 @@ func TestSOCKS5_Connect(t *testing.T) {
 		_, err = io.ReadAtLeast(conn, buf, 4)
 		require.NoError(t, err)
 		assert.Equal(t, []byte("ping"), buf)
-		_, _ = conn.Write([]byte("pong"))
+
+		conn.Write([]byte("pong")) // nolint: errcheck
 	}()
 	lAddr := l.Addr().(*net.TCPAddr)
 
-	// Create a socks server
+	// Create a socks server with UserPass auth.
 	cator := UserPassAuthenticator{StaticCredentials{"foo": "bar"}}
 	srv := NewServer(
 		WithAuthMethods([]Authenticator{cator}),
@@ -54,18 +55,20 @@ func TestSOCKS5_Connect(t *testing.T) {
 	require.NoError(t, err)
 
 	// Connect, auth and connec to local
-	req := new(bytes.Buffer)
-	req.Write([]byte{statute.VersionSocks5, 2, statute.MethodNoAuth, statute.MethodUserPassAuth})
-	req.Write([]byte{statute.UserPassAuthVersion, 3, 'f', 'o', 'o', 3, 'b', 'a', 'r'})
+	req := bytes.NewBuffer(
+		[]byte{
+			statute.VersionSocks5, 2, statute.MethodNoAuth, statute.MethodUserPassAuth, // methods
+			statute.UserPassAuthVersion, 3, 'f', 'o', 'o', 3, 'b', 'a', 'r', // userpass auth
+		})
 	reqHead := statute.Request{
 		Version:  statute.VersionSocks5,
 		Command:  statute.CommandConnect,
 		Reserved: 0,
 		DstAddress: statute.AddrSpec{
-			"",
-			net.ParseIP("127.0.0.1"),
-			lAddr.Port,
-			statute.ATYPIPv4,
+			FQDN:     "",
+			IP:       net.ParseIP("127.0.0.1"),
+			Port:     lAddr.Port,
+			AddrType: statute.ATYPIPv4,
 		},
 	}
 	req.Write(reqHead.Bytes())
@@ -73,11 +76,11 @@ func TestSOCKS5_Connect(t *testing.T) {
 	req.Write([]byte("ping"))
 
 	// Send all the bytes
-	conn.Write(req.Bytes())
+	conn.Write(req.Bytes()) // nolint: errcheck
 
 	// Verify response
 	expected := []byte{
-		statute.VersionSocks5, statute.MethodUserPassAuth, // use user password auth
+		statute.VersionSocks5, statute.MethodUserPassAuth, // response use UserPass auth
 		statute.UserPassAuthVersion, statute.AuthSuccess, // response auth success
 	}
 	rspHead := statute.Request{
@@ -85,22 +88,19 @@ func TestSOCKS5_Connect(t *testing.T) {
 		Command:  statute.RepSuccess,
 		Reserved: 0,
 		DstAddress: statute.AddrSpec{
-			"",
-			net.ParseIP("127.0.0.1"),
-			0, // Ignore the port
-			statute.ATYPIPv4,
+			FQDN:     "",
+			IP:       net.ParseIP("127.0.0.1"),
+			Port:     0,
+			AddrType: statute.ATYPIPv4,
 		},
 	}
 	expected = append(expected, rspHead.Bytes()...)
 	expected = append(expected, []byte("pong")...)
 
 	out := make([]byte, len(expected))
-	_ = conn.SetDeadline(time.Now().Add(time.Second))
+	conn.SetDeadline(time.Now().Add(time.Second)) // nolint: errcheck
 	_, err = io.ReadFull(conn, out)
 	require.NoError(t, err)
-
-	t.Logf("proxy bind port: %d", statute.BuildPort(out[12], out[13]))
-
 	// Ignore the port
 	out[12] = 0
 	out[13] = 0
@@ -157,10 +157,10 @@ func TestSOCKS5_Associate(t *testing.T) {
 		Command:  statute.CommandAssociate,
 		Reserved: 0,
 		DstAddress: statute.AddrSpec{
-			"",
-			locIP,
-			lAddr.Port,
-			statute.ATYPIPv4,
+			FQDN:     "",
+			IP:       locIP,
+			Port:     lAddr.Port,
+			AddrType: statute.ATYPIPv4,
 		},
 	}
 	req.Write(reqHead.Bytes())
@@ -216,11 +216,11 @@ func Test_SocksWithProxy(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, []byte("ping"), buf)
 
-		conn.Write([]byte("pong"))
+		conn.Write([]byte("pong")) // nolint: errcheck
 	}()
 	lAddr := l.Addr().(*net.TCPAddr)
 
-	// Create a socks server
+	// Create a socks server with UserPass auth.
 	cator := UserPassAuthenticator{StaticCredentials{"foo": "bar"}}
 	serv := NewServer(
 		WithAuthMethods([]Authenticator{cator}),
@@ -245,14 +245,13 @@ func Test_SocksWithProxy(t *testing.T) {
 	conn.Write([]byte("ping")) // nolint: errcheck
 
 	out := make([]byte, 4)
-	_ = conn.SetDeadline(time.Now().Add(time.Second)) // nolint: errcheck
+	conn.SetDeadline(time.Now().Add(time.Second)) // nolint: errcheck
 	_, err = io.ReadFull(conn, out)
 	require.NoError(t, err)
-
 	require.Equal(t, []byte("pong"), out)
 }
 
-/*****************************    auth         *******************************/
+/*****************************    auth        *******************************/
 
 func TestNoAuth_Server(t *testing.T) {
 	req := bytes.NewBuffer(nil)
