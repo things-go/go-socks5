@@ -9,6 +9,14 @@ import (
 // Option user's option
 type Option func(s *Server)
 
+// WithBufferPool can be provided to implement custom buffer pool
+// By default, buffer pool use size is 32k
+func WithBufferPool(bufferPool BufferPool) Option {
+	return func(s *Server) {
+		s.bufferPool = bufferPool
+	}
+}
+
 // WithAuthMethods can be provided to implement custom authentication
 // By default, "auth-less" mode is enabled.
 // For password-based auth use UserPassAuthenticator.
@@ -26,9 +34,7 @@ func WithAuthMethods(authMethods []Authenticator) Option {
 // and AUthMethods is nil, then "auth-less" mode is enabled.
 func WithCredential(cs CredentialStore) Option {
 	return func(s *Server) {
-		if cs != nil {
-			s.credentials = cs
-		}
+		s.credentials = cs
 	}
 }
 
@@ -36,9 +42,7 @@ func WithCredential(cs CredentialStore) Option {
 // Defaults to DNSResolver if not provided.
 func WithResolver(res NameResolver) Option {
 	return func(s *Server) {
-		if res != nil {
-			s.resolver = res
-		}
+		s.resolver = res
 	}
 }
 
@@ -46,9 +50,7 @@ func WithResolver(res NameResolver) Option {
 // various commands. If not provided, NewPermitAll is used.
 func WithRule(rule RuleSet) Option {
 	return func(s *Server) {
-		if rule != nil {
-			s.rules = rule
-		}
+		s.rules = rule
 	}
 }
 
@@ -57,9 +59,7 @@ func WithRule(rule RuleSet) Option {
 // Defaults to NoRewrite.
 func WithRewriter(rew AddressRewriter) Option {
 	return func(s *Server) {
-		if rew != nil {
-			s.rewriter = rew
-		}
+		s.rewriter = rew
 	}
 }
 
@@ -77,27 +77,21 @@ func WithBindIP(ip net.IP) Option {
 // Defaults to ioutil.Discard.
 func WithLogger(l Logger) Option {
 	return func(s *Server) {
-		if l != nil {
-			s.logger = l
-		}
+		s.logger = l
 	}
 }
 
 // WithDial Optional function for dialing out
 func WithDial(dial func(ctx context.Context, network, addr string) (net.Conn, error)) Option {
 	return func(s *Server) {
-		if dial != nil {
-			s.dial = dial
-		}
+		s.dial = dial
 	}
 }
 
 // WithGPool can be provided to do custom goroutine pool.
 func WithGPool(pool GPool) Option {
 	return func(s *Server) {
-		if pool != nil {
-			s.gPool = pool
-		}
+		s.gPool = pool
 	}
 }
 

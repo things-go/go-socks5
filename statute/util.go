@@ -16,7 +16,7 @@ type AddrSpec struct {
 	AddrType byte
 }
 
-// DstAddress returns a string suitable to dial; prefer returning IP-based
+// String returns a string suitable to dial; prefer returning IP-based
 // address, fallback to FQDN
 func (a *AddrSpec) String() string {
 	if 0 != len(a.IP) {
@@ -25,7 +25,7 @@ func (a *AddrSpec) String() string {
 	return net.JoinHostPort(a.FQDN, strconv.Itoa(a.Port))
 }
 
-// DstAddress returns a string which may be specified
+// Address returns a string which may be specified
 // if IPv4/IPv6 will return < ip:port >
 // if FQDN will return < domain ip:port >
 // Note: do not used to dial, Please use String

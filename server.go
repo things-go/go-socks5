@@ -48,7 +48,7 @@ type Server struct {
 	// Optional function for dialing out
 	dial func(ctx context.Context, network, addr string) (net.Conn, error)
 	// buffer pool
-	bufferPool *pool
+	bufferPool BufferPool
 	// goroutine pool
 	gPool GPool
 	// user's handle
@@ -62,7 +62,7 @@ func NewServer(opts ...Option) *Server {
 	server := &Server{
 		authMethods:       make(map[uint8]Authenticator),
 		authCustomMethods: []Authenticator{&NoAuthAuthenticator{}},
-		bufferPool:        newPool(2 * 1024),
+		bufferPool:        NewPool(32 * 1024),
 		resolver:          DNSResolver{},
 		rules:             NewPermitAll(),
 		logger:            NewLogger(log.New(ioutil.Discard, "socks5: ", log.LstdFlags)),

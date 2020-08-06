@@ -150,7 +150,7 @@ func (s *Server) handleConnect(ctx context.Context, writer io.Writer, request *R
 }
 
 // handleBind is used to handle a connect command
-func (s *Server) handleBind(_ context.Context, writer io.Writer, request *Request) error {
+func (s *Server) handleBind(_ context.Context, writer io.Writer, _ *Request) error {
 	// TODO: Support bind
 	if err := SendReply(writer, statute.RepCommandNotSupported, nil); err != nil {
 		return fmt.Errorf("failed to send reply: %v", err)

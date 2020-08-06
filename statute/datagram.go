@@ -6,13 +6,13 @@ import (
 	"net"
 )
 
+// Datagram udp packet
 // The SOCKS UDP request/response is formed as follows:
 // +-----+------+-------+----------+----------+----------+
 // | RSV | FRAG |  ATYP | DST.ADDR | DST.PORT |   DATA   |
 // +-----+------+-------+----------+----------+----------+
 // |  2  |  1   | X'00' | Variable |     2    | Variable |
 // +-----+------+-------+----------+----------+----------+
-// Datagram udp packet
 type Datagram struct {
 	RSV     uint16
 	Frag    byte
@@ -34,7 +34,7 @@ func NewDatagram(destAddr string, data []byte) (p Datagram, err error) {
 	return
 }
 
-// ParseRequest parse to datagram
+// ParseDatagram parse to datagram from bytes
 func ParseDatagram(b []byte) (da Datagram, err error) {
 	if len(b) < 4+net.IPv4len+2 { // no enough data
 		err = errors.New("datagram to short")

@@ -1,6 +1,6 @@
 package statute
 
-// socks protocol version
+// VersionSocks5 socks protocol version
 const VersionSocks5 = byte(0x05)
 
 // request command defined

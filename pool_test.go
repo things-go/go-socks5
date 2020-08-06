@@ -8,7 +8,7 @@ import (
 )
 
 func TestPool(t *testing.T) {
-	p := newPool(2048)
+	p := NewPool(2048)
 	b := p.Get()
 	bs := b[0:cap(b)]
 	require.Equal(t, cap(b), len(bs))
@@ -21,7 +21,7 @@ func TestPool(t *testing.T) {
 }
 
 func BenchmarkSyncPool(b *testing.B) {
-	p := newPool(32 * 1024)
+	p := NewPool(32 * 1024)
 	wg := new(sync.WaitGroup)
 
 	b.ResetTimer()

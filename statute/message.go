@@ -146,7 +146,7 @@ func (h Reply) Bytes() (b []byte) {
 	return b
 }
 
-// ParseRequest to request from io.Reader
+// ParseReply parse to reply from io.Reader
 func ParseReply(r io.Reader) (rep Reply, err error) {
 	// Read the version and command
 	tmp := []byte{0, 0}
