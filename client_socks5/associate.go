@@ -10,7 +10,7 @@ type Associate struct {
 }
 
 func (sf *Associate) getUDPConn() *net.UDPConn {
-	return sf.underConn.(*underUDPConn).udpConn
+	return sf.underConn.(*underAssociate).udpConn
 }
 
 func (sf *Associate) SetReadBuffer(bytes int) error {

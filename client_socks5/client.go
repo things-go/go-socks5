@@ -85,7 +85,7 @@ func (sf *Client) Dial(network, addr string) (net.Conn, error) {
 	return nil, errors.New("not support network")
 }
 
-func (sf *Client) DialTCP(network, addr string) (*Connect, error) {
+func (sf *Client) DialTCP(network, addr string) (net.Conn, error) {
 	conn := *sf // clone a client
 
 	_, err := net.ResolveTCPAddr(network, addr)
@@ -105,7 +105,7 @@ func (sf *Client) DialTCP(network, addr string) (*Connect, error) {
 	return &Connect{&conn}, nil
 }
 
-func (sf *Client) DialUDP(network string, laddr *net.UDPAddr, raddr string) (*Associate, error) {
+func (sf *Client) DialUDP(network string, laddr *net.UDPAddr, raddr string) (net.Conn, error) {
 	conn := *sf // clone a client
 
 	remoteAddress, err := net.ResolveUDPAddr(network, raddr)
@@ -140,7 +140,7 @@ func (sf *Client) DialUDP(network string, laddr *net.UDPAddr, raddr string) (*As
 		conn.Close()
 		return nil, err
 	}
-	conn.underConn = &underUDPConn{
+	conn.underConn = &underAssociate{
 		udpConn,
 		conn.bufferPool,
 		remoteAddress,

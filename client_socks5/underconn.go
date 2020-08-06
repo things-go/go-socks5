@@ -8,13 +8,13 @@ import (
 	"github.com/thinkgos/go-socks5/statute"
 )
 
-type underUDPConn struct {
+type underAssociate struct {
 	udpConn       *net.UDPConn
 	bufferPool    bufferpool.BufPool
 	remoteAddress net.Addr
 }
 
-func (sf *underUDPConn) Read(b []byte) (int, error) {
+func (sf *underAssociate) Read(b []byte) (int, error) {
 	b1 := sf.bufferPool.Get()
 	defer sf.bufferPool.Put(b1)
 
@@ -30,7 +30,7 @@ func (sf *underUDPConn) Read(b []byte) (int, error) {
 	return n, nil
 }
 
-func (sf *underUDPConn) Write(b []byte) (int, error) {
+func (sf *underAssociate) Write(b []byte) (int, error) {
 	datagram, err := statute.NewDatagram(sf.remoteAddress.String(), b)
 	if err != nil {
 		return 0, err
@@ -38,26 +38,26 @@ func (sf *underUDPConn) Write(b []byte) (int, error) {
 	return sf.udpConn.Write(datagram.Bytes())
 }
 
-func (sf *underUDPConn) Close() error {
+func (sf *underAssociate) Close() error {
 	return sf.udpConn.Close()
 }
 
-func (sf *underUDPConn) LocalAddr() net.Addr {
+func (sf *underAssociate) LocalAddr() net.Addr {
 	return sf.udpConn.LocalAddr()
 }
 
-func (sf *underUDPConn) RemoteAddr() net.Addr {
+func (sf *underAssociate) RemoteAddr() net.Addr {
 	return sf.remoteAddress
 }
 
-func (sf *underUDPConn) SetDeadline(t time.Time) error {
+func (sf *underAssociate) SetDeadline(t time.Time) error {
 	return sf.udpConn.SetDeadline(t)
 }
 
-func (sf *underUDPConn) SetReadDeadline(t time.Time) error {
+func (sf *underAssociate) SetReadDeadline(t time.Time) error {
 	return sf.udpConn.SetReadDeadline(t)
 }
 
-func (sf *underUDPConn) SetWriteDeadline(t time.Time) error {
+func (sf *underAssociate) SetWriteDeadline(t time.Time) error {
 	return sf.udpConn.SetWriteDeadline(t)
 }
