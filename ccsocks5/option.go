@@ -1,4 +1,4 @@
-package client_socks5
+package ccsocks5
 
 import (
 	"time"
@@ -8,34 +8,28 @@ import (
 	"github.com/thinkgos/go-socks5/bufferpool"
 )
 
+// Option user's option of the client
 type Option func(c *Client)
 
+// WithAuth with user's auth
+// default is nil,no UserPass
 func WithAuth(auth *proxy.Auth) Option {
 	return func(c *Client) {
 		c.auth = auth
 	}
 }
 
+// WithBufferPool with buffer pool
+// default: 32k
 func WithBufferPool(p bufferpool.BufPool) Option {
 	return func(c *Client) {
 		c.bufferPool = p
 	}
 }
 
+// WithKeepAlivePeriod set tcp keep alive period
 func WithKeepAlivePeriod(t time.Duration) Option {
 	return func(c *Client) {
-		c.KeepAlivePeriod = t
-	}
-}
-
-func WithTCPDeadline(t time.Duration) Option {
-	return func(c *Client) {
-		c.TCPDeadline = t
-	}
-}
-
-func WithUDPDeadline(t time.Duration) Option {
-	return func(c *Client) {
-		c.UDPDeadline = t
+		c.keepAlivePeriod = t
 	}
 }

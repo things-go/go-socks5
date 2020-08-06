@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/thinkgos/go-socks5"
-	"github.com/thinkgos/go-socks5/client_socks5"
+	"github.com/thinkgos/go-socks5/ccsocks5"
 )
 
 func handleErr(err error) {
@@ -41,7 +41,7 @@ func main() {
 
 	go func() {
 		time.Sleep(time.Second)
-		c, err := client_socks5.NewClient("127.0.0.1:10809")
+		c, err := ccsocks5.NewClient("127.0.0.1:10809")
 		handleErr(err)
 		con, err := c.Dial("udp", lAddr.String())
 		handleErr(err)

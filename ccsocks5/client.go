@@ -1,4 +1,4 @@
-package client_socks5
+package ccsocks5
 
 import (
 	"errors"
@@ -11,26 +11,22 @@ import (
 	"github.com/thinkgos/go-socks5/statute"
 )
 
-// Client is socks5 client wrapper
+// Client is socks5 client.
 type Client struct {
 	proxyAddr string
 	auth      *proxy.Auth
 	// On command UDP, let server control the tcp and udp connection relationship
-	tcpConn         *net.TCPConn
-	underConn       net.Conn
-	TCPDeadline     time.Duration
-	KeepAlivePeriod time.Duration
-	UDPDeadline     time.Duration
+	tcpConn *net.TCPConn
+	net.Conn
+	keepAlivePeriod time.Duration
 	bufferPool      bufferpool.BufPool
 }
 
-// This is just create a client, you need to use Dial to create conn
+// NewClient This is just create a client, you need to use Dial to create conn.
 func NewClient(proxyAddr string, opts ...Option) (*Client, error) {
 	c := &Client{
 		proxyAddr:       proxyAddr,
-		KeepAlivePeriod: time.Second,
-		TCPDeadline:     time.Second,
-		UDPDeadline:     time.Second,
+		keepAlivePeriod: time.Second * 30,
 		bufferPool:      bufferpool.NewPool(32 * 1024),
 	}
 	for _, opt := range opts {
@@ -39,42 +35,16 @@ func NewClient(proxyAddr string, opts ...Option) (*Client, error) {
 	return c, nil
 }
 
-func (sf *Client) Read(b []byte) (int, error) {
-	return sf.underConn.Read(b)
-}
-
-func (sf *Client) Write(b []byte) (int, error) {
-	return sf.underConn.Write(b)
-}
-
+// Close closes the connection.
 func (sf *Client) Close() (err error) {
 	err = sf.tcpConn.Close()
-	if sf.underConn != nil {
-		err = sf.underConn.Close()
+	if sf.Conn != nil {
+		err = sf.Conn.Close()
 	}
 	return
 }
 
-func (sf *Client) LocalAddr() net.Addr {
-	return sf.underConn.LocalAddr()
-}
-
-func (sf *Client) RemoteAddr() net.Addr {
-	return sf.underConn.RemoteAddr()
-}
-
-func (sf *Client) SetDeadline(t time.Time) error {
-	return sf.underConn.SetDeadline(t)
-}
-
-func (sf *Client) SetReadDeadline(t time.Time) error {
-	return sf.underConn.SetReadDeadline(t)
-}
-
-func (sf *Client) SetWriteDeadline(t time.Time) error {
-	return sf.underConn.SetWriteDeadline(t)
-}
-
+// Dial connects to the address on the named network through proxy , with socks5 handshake.
 func (sf *Client) Dial(network, addr string) (net.Conn, error) {
 	if network == "tcp" {
 		return sf.DialTCP(network, addr)
@@ -85,10 +55,11 @@ func (sf *Client) Dial(network, addr string) (net.Conn, error) {
 	return nil, errors.New("not support network")
 }
 
+// DialTCP connects to the address on the named network through proxy , with socks5 handshake.
 func (sf *Client) DialTCP(network, addr string) (net.Conn, error) {
 	conn := *sf // clone a client
 
-	_, err := net.ResolveTCPAddr(network, addr)
+	remoteAddress, err := net.ResolveTCPAddr(network, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -101,10 +72,14 @@ func (sf *Client) DialTCP(network, addr string) (net.Conn, error) {
 		conn.Close()
 		return nil, err
 	}
-	conn.underConn = conn.tcpConn
+	conn.Conn = &underConnect{
+		conn.tcpConn,
+		remoteAddress,
+	}
 	return &Connect{&conn}, nil
 }
 
+// DialUDP connects to the address on the named network through proxy , with socks5 handshake.
 func (sf *Client) DialUDP(network string, laddr *net.UDPAddr, raddr string) (net.Conn, error) {
 	conn := *sf // clone a client
 
@@ -140,7 +115,7 @@ func (sf *Client) DialUDP(network string, laddr *net.UDPAddr, raddr string) (net
 		conn.Close()
 		return nil, err
 	}
-	conn.underConn = &underAssociate{
+	conn.Conn = &underAssociate{
 		udpConn,
 		conn.bufferPool,
 		remoteAddress,
@@ -218,8 +193,8 @@ func (sf *Client) dialProxyServer(network string) error {
 	}
 	sf.tcpConn = conn.(*net.TCPConn)
 
-	if sf.KeepAlivePeriod != 0 {
-		err = sf.tcpConn.SetKeepAlivePeriod(sf.KeepAlivePeriod)
+	if sf.keepAlivePeriod != 0 {
+		err = sf.tcpConn.SetKeepAlivePeriod(sf.keepAlivePeriod)
 	}
 	if err != nil {
 		sf.tcpConn.Close()
