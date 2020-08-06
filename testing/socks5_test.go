@@ -50,11 +50,10 @@ func Test_Socks5_Connect(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	// Get a local conn
-	client, err := ccsocks5.NewClient("127.0.0.1:12389",
+	client := ccsocks5.NewClient("127.0.0.1:12389",
 		ccsocks5.WithAuth(&proxy.Auth{User: "user", Password: "pass"}),
 		ccsocks5.WithBufferPool(bufferpool.NewPool(32*1024)),
 	)
-	require.NoError(t, err)
 
 	conn, err := client.Dial("tcp", l.Addr().String())
 	require.NoError(t, err)
@@ -105,11 +104,10 @@ func Test_socks5_Associate(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	// Get a local conn
-	client, err := ccsocks5.NewClient(
+	client := ccsocks5.NewClient(
 		"127.0.0.1:12385",
 		ccsocks5.WithAuth(&proxy.Auth{User: "user", Password: "pass"}),
 	)
-	require.NoError(t, err)
 
 	conn, err := client.Dial("udp", lAddr.String())
 	require.NoError(t, err)

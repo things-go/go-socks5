@@ -39,9 +39,8 @@ func main() {
 
 	go func() {
 		time.Sleep(time.Second * 1)
-		c, err := ccsocks5.NewClient("127.0.0.1:10808")
-		handleErr(err)
-		con, err := c.Dial("tcp", lAddr.String())
+		client := ccsocks5.NewClient("127.0.0.1:10808")
+		con, err := client.Dial("tcp", lAddr.String())
 		handleErr(err)
 
 		for {

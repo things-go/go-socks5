@@ -24,7 +24,7 @@ type Client struct {
 
 // NewClient This is just create a client.
 // you need to use Dial to create conn.
-func NewClient(proxyAddr string, opts ...Option) (*Client, error) {
+func NewClient(proxyAddr string, opts ...Option) *Client {
 	c := &Client{
 		proxyAddr:       proxyAddr,
 		keepAlivePeriod: time.Second * 30,
@@ -33,7 +33,7 @@ func NewClient(proxyAddr string, opts ...Option) (*Client, error) {
 	for _, opt := range opts {
 		opt(c)
 	}
-	return c, nil
+	return c
 }
 
 // Close closes the connection.

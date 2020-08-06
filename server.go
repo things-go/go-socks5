@@ -24,12 +24,12 @@ type GPool interface {
 type Server struct {
 	authMethods map[uint8]Authenticator
 	// AuthMethods can be provided to implement custom authentication
-	// By default, "auth-less" mode is enabled.
+	// By default, "no-auth" mode is enabled.
 	// For password-based auth use UserPassAuthenticator.
 	authCustomMethods []Authenticator
 	// If provided, username/password authentication is enabled,
 	// by appending a UserPassAuthenticator to AuthMethods. If not provided,
-	// and AUthMethods is nil, then "auth-less" mode is enabled.
+	// and authCustomMethods is nil, then "no-auth" mode is enabled.
 	credentials CredentialStore
 	// resolver can be provided to do custom name resolution.
 	// Defaults to DNSResolver if not provided.
@@ -58,11 +58,11 @@ type Server struct {
 	userAssociateHandle func(ctx context.Context, writer io.Writer, request *Request) error
 }
 
-// NewServer creates a new Server and potentially returns an error
+// NewServer creates a new Server
 func NewServer(opts ...Option) *Server {
-	server := &Server{
+	srv := &Server{
 		authMethods:       make(map[uint8]Authenticator),
-		authCustomMethods: []Authenticator{&NoAuthAuthenticator{}},
+		authCustomMethods: []Authenticator{},
 		bufferPool:        bufferpool.NewPool(32 * 1024),
 		resolver:          DNSResolver{},
 		rules:             NewPermitAll(),
@@ -73,19 +73,23 @@ func NewServer(opts ...Option) *Server {
 	}
 
 	for _, opt := range opts {
-		opt(server)
+		opt(srv)
 	}
 
 	// Ensure we have at least one authentication method enabled
-	if len(server.authCustomMethods) == 0 && server.credentials != nil {
-		server.authCustomMethods = []Authenticator{&UserPassAuthenticator{server.credentials}}
+	if (len(srv.authCustomMethods) == 0) && srv.credentials != nil {
+		srv.authCustomMethods = []Authenticator{&UserPassAuthenticator{srv.credentials}}
 	}
 
-	for _, v := range server.authCustomMethods {
-		server.authMethods[v.GetCode()] = v
+	if len(srv.authCustomMethods) == 0 {
+		srv.authCustomMethods = []Authenticator{&NoAuthAuthenticator{}}
 	}
 
-	return server
+	for _, v := range srv.authCustomMethods {
+		srv.authMethods[v.GetCode()] = v
+	}
+
+	return srv
 }
 
 // ListenAndServe is used to create a listener and serve on it

@@ -258,7 +258,7 @@ func Test_SocksWithProxy(t *testing.T) {
 func TestNoAuth_Server(t *testing.T) {
 	req := bytes.NewBuffer(nil)
 	rsp := new(bytes.Buffer)
-	s := NewServer()
+	s := NewServer(WithAuthMethods([]Authenticator{&NoAuthAuthenticator{}}))
 
 	ctx, err := s.authenticate(rsp, req, "", []byte{statute.MethodNoAuth})
 	require.NoError(t, err)
