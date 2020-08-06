@@ -1,9 +1,6 @@
 package ccsocks5
 
 import (
-	"context"
-	"net"
-
 	"golang.org/x/net/proxy"
 
 	"github.com/thinkgos/go-socks5/bufferpool"
@@ -25,12 +22,5 @@ func WithAuth(auth *proxy.Auth) Option {
 func WithBufferPool(p bufferpool.BufPool) Option {
 	return func(c *Client) {
 		c.bufferPool = p
-	}
-}
-
-// WithDial set custom dial
-func WithDial(dial func(ctx context.Context, network, addr string) (net.Conn, error)) Option {
-	return func(c *Client) {
-		c.dial = dial
 	}
 }

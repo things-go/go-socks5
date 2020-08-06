@@ -1,7 +1,6 @@
 package ccsocks5
 
 import (
-	"context"
 	"errors"
 	"net"
 	"time"
@@ -21,7 +20,6 @@ type Client struct {
 	// real server connection udp/tcp
 	net.Conn
 	bufferPool bufferpool.BufPool
-	dial       func(ctx context.Context, network, addr string) (net.Conn, error)
 }
 
 // NewClient This is just create a client.
@@ -67,7 +65,7 @@ func (sf *Client) DialTCP(network, addr string) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = conn.dialProxyServer(network)
+	conn.proxyConn, err = net.Dial(network, sf.proxyAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +89,7 @@ func (sf *Client) DialUDP(network string, laddr *net.UDPAddr, raddr string) (net
 	if err != nil {
 		return nil, err
 	}
-	err = conn.dialProxyServer("tcp")
+	conn.proxyConn, err = net.Dial("tcp", sf.proxyAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -189,30 +187,13 @@ func (sf *Client) handshake(command byte, addr string) (string, error) {
 	return rspHead.BndAddress.String(), nil
 }
 
-func (sf *Client) dialProxyServer(network string) (err error) {
-	if sf.dial != nil {
-		sf.proxyConn, err = sf.dial(context.TODO(), network, sf.proxyAddr)
-	} else { // must tcp
-		sf.proxyConn, err = net.Dial(network, sf.proxyAddr)
-	}
-	return
-}
-
 // SetKeepAlive sets whether the operating system should send
 // keep-alive messages on the connection.
-// Note: only proxy server on tcp mode
 func (sf *Client) SetKeepAlive(keepalive bool) error {
-	if c, ok := sf.proxyConn.(*net.TCPConn); ok {
-		return c.SetKeepAlive(keepalive)
-	}
-	return errors.New("not support keep alive setting")
+	return sf.proxyConn.(*net.TCPConn).SetKeepAlive(keepalive)
 }
 
 // SetKeepAlivePeriod sets period between keep-alives.
-// Note: only proxy server on tcp mode
 func (sf *Client) SetKeepAlivePeriod(d time.Duration) error {
-	if c, ok := sf.proxyConn.(*net.TCPConn); ok {
-		return c.SetKeepAlivePeriod(d)
-	}
-	return errors.New("not support keep alive period setting")
+	return sf.proxyConn.(*net.TCPConn).SetKeepAlivePeriod(d)
 }
