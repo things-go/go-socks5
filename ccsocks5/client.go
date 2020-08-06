@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"time"
 
 	"golang.org/x/net/proxy"
 
@@ -195,4 +196,17 @@ func (sf *Client) dialProxyServer(network string) (err error) {
 		sf.proxyConn, err = net.Dial(network, sf.proxyAddr)
 	}
 	return
+}
+
+// SetKeepAlive sets whether the operating system should send
+// keep-alive messages on the connection.
+// Note: only proxy server on tcp mode
+func (sf *Client) SetKeepAlive(keepalive bool) error {
+	return sf.proxyConn.(*net.TCPConn).SetKeepAlive(keepalive)
+}
+
+// SetKeepAlivePeriod sets period between keep-alives.
+// Note: only proxy server on tcp mode
+func (sf *Client) SetKeepAlivePeriod(d time.Duration) error {
+	return sf.proxyConn.(*net.TCPConn).SetKeepAlivePeriod(d)
 }
