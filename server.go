@@ -10,6 +10,7 @@ import (
 	"log"
 	"net"
 
+	"github.com/thinkgos/go-socks5/bufferpool"
 	"github.com/thinkgos/go-socks5/statute"
 )
 
@@ -48,7 +49,7 @@ type Server struct {
 	// Optional function for dialing out
 	dial func(ctx context.Context, network, addr string) (net.Conn, error)
 	// buffer pool
-	bufferPool BufferPool
+	bufferPool bufferpool.BufPool
 	// goroutine pool
 	gPool GPool
 	// user's handle
@@ -62,7 +63,7 @@ func NewServer(opts ...Option) *Server {
 	server := &Server{
 		authMethods:       make(map[uint8]Authenticator),
 		authCustomMethods: []Authenticator{&NoAuthAuthenticator{}},
-		bufferPool:        NewPool(32 * 1024),
+		bufferPool:        bufferpool.NewPool(32 * 1024),
 		resolver:          DNSResolver{},
 		rules:             NewPermitAll(),
 		logger:            NewLogger(log.New(ioutil.Discard, "socks5: ", log.LstdFlags)),

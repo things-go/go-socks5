@@ -1,12 +1,12 @@
-package socks5
+package bufferpool
 
 import (
 	"sync"
 )
 
-// A BufferPool is an interface for getting and returning temporary
+// BufPool is an interface for getting and returning temporary
 // byte slices for use by io.CopyBuffer.
-type BufferPool interface {
+type BufPool interface {
 	Get() []byte
 	Put([]byte)
 }
@@ -18,7 +18,7 @@ type pool struct {
 
 // NewPool new buffer pool for getting and returning temporary
 // byte slices for use by io.CopyBuffer.
-func NewPool(size int) BufferPool {
+func NewPool(size int) BufPool {
 	return &pool{
 		size,
 		&sync.Pool{
@@ -26,12 +26,12 @@ func NewPool(size int) BufferPool {
 	}
 }
 
-// Get implement interface BufferPool
+// Get implement interface BufPool
 func (sf *pool) Get() []byte {
 	return sf.pool.Get().([]byte)
 }
 
-// Put implement interface BufferPool
+// Put implement interface BufPool
 func (sf *pool) Put(b []byte) {
 	if cap(b) != sf.size {
 		panic("invalid buffer size that's put into leaky buffer")

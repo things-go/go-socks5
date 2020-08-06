@@ -100,6 +100,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 	out := make([]byte, len(expected))
 	conn.SetDeadline(time.Now().Add(time.Second)) // nolint: errcheck
 	_, err = io.ReadFull(conn, out)
+	conn.SetDeadline(time.Time{}) // nolint: errcheck
 	require.NoError(t, err)
 	// Ignore the port
 	out[12] = 0
@@ -110,7 +111,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 func TestSOCKS5_Associate(t *testing.T) {
 	locIP := net.ParseIP("127.0.0.1")
 	// Create a local listener
-	lAddr := &net.UDPAddr{IP: locIP, Port: 12398}
+	lAddr := &net.UDPAddr{IP: locIP, Port: 12399}
 	l, err := net.ListenUDP("udp", lAddr)
 	require.NoError(t, err)
 	defer l.Close()
@@ -173,8 +174,9 @@ func TestSOCKS5_Associate(t *testing.T) {
 	}
 
 	out := make([]byte, len(expected))
-	_ = conn.SetDeadline(time.Now().Add(time.Second))
+	conn.SetDeadline(time.Now().Add(time.Second)) // nolint: errcheck
 	_, err = io.ReadFull(conn, out)
+	conn.SetDeadline(time.Time{}) // nolint: errcheck
 	require.NoError(t, err)
 	require.Equal(t, expected, out)
 
@@ -183,7 +185,7 @@ func TestSOCKS5_Associate(t *testing.T) {
 	require.Equal(t, statute.VersionSocks5, rspHead.Version)
 	require.Equal(t, statute.RepSuccess, rspHead.Response)
 
-	t.Logf("proxy bind listen port: %d", rspHead.BndAddress.Port)
+	// t.Logf("proxy bind listen port: %d", rspHead.BndAddress.Port)
 
 	udpConn, err := net.DialUDP("udp", nil, &net.UDPAddr{
 		IP:   locIP,
@@ -246,6 +248,7 @@ func Test_SocksWithProxy(t *testing.T) {
 	out := make([]byte, 4)
 	conn.SetDeadline(time.Now().Add(time.Second)) // nolint: errcheck
 	_, err = io.ReadFull(conn, out)
+	conn.SetDeadline(time.Time{}) // nolint: errcheck
 	require.NoError(t, err)
 	require.Equal(t, []byte("pong"), out)
 }

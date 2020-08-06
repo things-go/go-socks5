@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/thinkgos/go-socks5/bufferpool"
 	"github.com/thinkgos/go-socks5/statute"
 )
 
@@ -49,7 +50,7 @@ func TestRequest_Connect(t *testing.T) {
 		rules:      NewPermitAll(),
 		resolver:   DNSResolver{},
 		logger:     NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags)),
-		bufferPool: NewPool(32 * 1024),
+		bufferPool: bufferpool.NewPool(32 * 1024),
 	}
 
 	// Create the connect request
@@ -106,7 +107,7 @@ func TestRequest_Connect_RuleFail(t *testing.T) {
 		rules:      NewPermitNone(),
 		resolver:   DNSResolver{},
 		logger:     NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags)),
-		bufferPool: NewPool(32 * 1024),
+		bufferPool: bufferpool.NewPool(32 * 1024),
 	}
 
 	// Create the connect request

@@ -4,6 +4,8 @@ import (
 	"context"
 	"io"
 	"net"
+
+	"github.com/thinkgos/go-socks5/bufferpool"
 )
 
 // Option user's option
@@ -11,7 +13,7 @@ type Option func(s *Server)
 
 // WithBufferPool can be provided to implement custom buffer pool
 // By default, buffer pool use size is 32k
-func WithBufferPool(bufferPool BufferPool) Option {
+func WithBufferPool(bufferPool bufferpool.BufPool) Option {
 	return func(s *Server) {
 		s.bufferPool = bufferPool
 	}
