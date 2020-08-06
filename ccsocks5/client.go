@@ -22,7 +22,8 @@ type Client struct {
 	bufferPool      bufferpool.BufPool
 }
 
-// NewClient This is just create a client, you need to use Dial to create conn.
+// NewClient This is just create a client.
+// you need to use Dial to create conn.
 func NewClient(proxyAddr string, opts ...Option) (*Client, error) {
 	c := &Client{
 		proxyAddr:       proxyAddr,
@@ -37,7 +38,9 @@ func NewClient(proxyAddr string, opts ...Option) (*Client, error) {
 
 // Close closes the connection.
 func (sf *Client) Close() (err error) {
-	err = sf.tcpConn.Close()
+	if sf.tcpConn != nil {
+		err = sf.tcpConn.Close()
+	}
 	if sf.Conn != nil {
 		err = sf.Conn.Close()
 	}
