@@ -98,14 +98,14 @@ func Test_socks5_Associate(t *testing.T) {
 	)
 	// Start listening
 	go func() {
-		err := proxySrv.ListenAndServe("tcp", "127.0.0.1:12385")
+		err := proxySrv.ListenAndServe("tcp", "127.0.0.1:9385")
 		require.NoError(t, err)
 	}()
 	time.Sleep(10 * time.Millisecond)
 
 	// Get a local conn
 	client := ccsocks5.NewClient(
-		"127.0.0.1:12385",
+		"127.0.0.1:9385",
 		ccsocks5.WithAuth(&proxy.Auth{User: "user", Password: "pass"}),
 	)
 
