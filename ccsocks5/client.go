@@ -202,11 +202,17 @@ func (sf *Client) dialProxyServer(network string) (err error) {
 // keep-alive messages on the connection.
 // Note: only proxy server on tcp mode
 func (sf *Client) SetKeepAlive(keepalive bool) error {
-	return sf.proxyConn.(*net.TCPConn).SetKeepAlive(keepalive)
+	if c, ok := sf.proxyConn.(*net.TCPConn); ok {
+		return c.SetKeepAlive(keepalive)
+	}
+	return errors.New("not support keep alive setting")
 }
 
 // SetKeepAlivePeriod sets period between keep-alives.
 // Note: only proxy server on tcp mode
 func (sf *Client) SetKeepAlivePeriod(d time.Duration) error {
-	return sf.proxyConn.(*net.TCPConn).SetKeepAlivePeriod(d)
+	if c, ok := sf.proxyConn.(*net.TCPConn); ok {
+		return c.SetKeepAlivePeriod(d)
+	}
+	return errors.New("not support keep alive period setting")
 }
