@@ -105,9 +105,11 @@ func (sf *Client) DialUDP(network string, laddr *net.UDPAddr, raddr string) (net
 	}
 
 	if laddr == nil {
+		ad := conn.proxyConn.LocalAddr().(*net.TCPAddr)
 		laddr = &net.UDPAddr{
-			IP:   net.IPv4zero,
-			Port: 0,
+			IP:   ad.IP,
+			Port: ad.Port,
+			Zone: ad.Zone,
 		}
 	}
 
