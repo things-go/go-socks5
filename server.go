@@ -88,31 +88,31 @@ func NewServer(opts ...Option) *Server {
 }
 
 // ListenAndServe is used to create a listener and serve on it
-func (s *Server) ListenAndServe(network, addr string) error {
+func (sf *Server) ListenAndServe(network, addr string) error {
 	l, err := net.Listen(network, addr)
 	if err != nil {
 		return err
 	}
-	return s.Serve(l)
+	return sf.Serve(l)
 }
 
 // Serve is used to serve connections from a listener
-func (s *Server) Serve(l net.Listener) error {
+func (sf *Server) Serve(l net.Listener) error {
 	for {
 		conn, err := l.Accept()
 		if err != nil {
 			return err
 		}
-		s.submit(func() {
-			if err := s.ServeConn(conn); err != nil {
-				s.logger.Errorf("server conn %v", err)
+		sf.submit(func() {
+			if err := sf.ServeConn(conn); err != nil {
+				sf.logger.Errorf("server conn %v", err)
 			}
 		})
 	}
 }
 
 // ServeConn is used to serve a single connection.
-func (s *Server) ServeConn(conn net.Conn) error {
+func (sf *Server) ServeConn(conn net.Conn) error {
 	var authContext *AuthContext
 
 	defer conn.Close()
@@ -128,7 +128,7 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	}
 
 	// Authenticate the connection
-	authContext, err = s.authenticate(conn, bufConn, conn.RemoteAddr().String(), mr.Methods)
+	authContext, err = sf.authenticate(conn, bufConn, conn.RemoteAddr().String(), mr.Methods)
 	if err != nil {
 		return fmt.Errorf("failed to authenticate: %w", err)
 	}
@@ -157,14 +157,14 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	request.LocalAddr = conn.LocalAddr()
 	request.RemoteAddr = conn.RemoteAddr()
 	// Process the client request
-	return s.handleRequest(conn, request)
+	return sf.handleRequest(conn, request)
 }
 
 // authenticate is used to handle connection authentication
-func (s *Server) authenticate(conn io.Writer, bufConn io.Reader, userAddr string, methods []byte) (*AuthContext, error) {
+func (sf *Server) authenticate(conn io.Writer, bufConn io.Reader, userAddr string, methods []byte) (*AuthContext, error) {
 	// Select a usable method
 	for _, method := range methods {
-		if cator, found := s.authMethods[method]; found {
+		if cator, found := sf.authMethods[method]; found {
 			return cator.Authenticate(bufConn, conn, userAddr)
 		}
 	}
@@ -173,8 +173,8 @@ func (s *Server) authenticate(conn io.Writer, bufConn io.Reader, userAddr string
 	return nil, statute.ErrNoSupportedAuth
 }
 
-func (s *Server) submit(f func()) {
-	if s.gPool == nil || s.gPool.Submit(f) != nil {
+func (sf *Server) submit(f func()) {
+	if sf.gPool == nil || sf.gPool.Submit(f) != nil {
 		go f()
 	}
 }

@@ -47,14 +47,14 @@ func ParseRequest(bufConn io.Reader) (*Request, error) {
 }
 
 // handleRequest is used for request processing after authentication
-func (s *Server) handleRequest(write io.Writer, req *Request) error {
+func (sf *Server) handleRequest(write io.Writer, req *Request) error {
 	var err error
 
 	ctx := context.Background()
 	// Resolve the address if we have a FQDN
 	dest := req.RawDestAddr
 	if dest.FQDN != "" {
-		ctx, dest.IP, err = s.resolver.Resolve(ctx, dest.FQDN)
+		ctx, dest.IP, err = sf.resolver.Resolve(ctx, dest.FQDN)
 		if err != nil {
 			if err := SendReply(write, statute.RepHostUnreachable, nil); err != nil {
 				return fmt.Errorf("failed to send reply, %v", err)
@@ -65,13 +65,13 @@ func (s *Server) handleRequest(write io.Writer, req *Request) error {
 
 	// Apply any address rewrites
 	req.DestAddr = req.RawDestAddr
-	if s.rewriter != nil {
-		ctx, req.DestAddr = s.rewriter.Rewrite(ctx, req)
+	if sf.rewriter != nil {
+		ctx, req.DestAddr = sf.rewriter.Rewrite(ctx, req)
 	}
 
 	// Check if this is allowed
 	var ok bool
-	ctx, ok = s.rules.Allow(ctx, req)
+	ctx, ok = sf.rules.Allow(ctx, req)
 	if !ok {
 		if err := SendReply(write, statute.RepRuleFailure, nil); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
@@ -82,20 +82,20 @@ func (s *Server) handleRequest(write io.Writer, req *Request) error {
 	// Switch on the command
 	switch req.Command {
 	case statute.CommandConnect:
-		if s.userConnectHandle != nil {
-			return s.userConnectHandle(ctx, write, req)
+		if sf.userConnectHandle != nil {
+			return sf.userConnectHandle(ctx, write, req)
 		}
-		return s.handleConnect(ctx, write, req)
+		return sf.handleConnect(ctx, write, req)
 	case statute.CommandBind:
-		if s.userBindHandle != nil {
-			return s.userBindHandle(ctx, write, req)
+		if sf.userBindHandle != nil {
+			return sf.userBindHandle(ctx, write, req)
 		}
-		return s.handleBind(ctx, write, req)
+		return sf.handleBind(ctx, write, req)
 	case statute.CommandAssociate:
-		if s.userAssociateHandle != nil {
-			return s.userAssociateHandle(ctx, write, req)
+		if sf.userAssociateHandle != nil {
+			return sf.userAssociateHandle(ctx, write, req)
 		}
-		return s.handleAssociate(ctx, write, req)
+		return sf.handleAssociate(ctx, write, req)
 	default:
 		if err := SendReply(write, statute.RepCommandNotSupported, nil); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
@@ -105,9 +105,9 @@ func (s *Server) handleRequest(write io.Writer, req *Request) error {
 }
 
 // handleConnect is used to handle a connect command
-func (s *Server) handleConnect(ctx context.Context, writer io.Writer, request *Request) error {
+func (sf *Server) handleConnect(ctx context.Context, writer io.Writer, request *Request) error {
 	// Attempt to connect
-	dial := s.dial
+	dial := sf.dial
 	if dial == nil {
 		dial = func(ctx context.Context, net_, addr string) (net.Conn, error) {
 			return net.Dial(net_, addr)
@@ -136,8 +136,8 @@ func (s *Server) handleConnect(ctx context.Context, writer io.Writer, request *R
 
 	// Start proxying
 	errCh := make(chan error, 2)
-	s.submit(func() { errCh <- s.Proxy(target, request.Reader) })
-	s.submit(func() { errCh <- s.Proxy(writer, target) })
+	sf.submit(func() { errCh <- sf.Proxy(target, request.Reader) })
+	sf.submit(func() { errCh <- sf.Proxy(writer, target) })
 	// Wait
 	for i := 0; i < 2; i++ {
 		e := <-errCh
@@ -150,7 +150,7 @@ func (s *Server) handleConnect(ctx context.Context, writer io.Writer, request *R
 }
 
 // handleBind is used to handle a connect command
-func (s *Server) handleBind(_ context.Context, writer io.Writer, _ *Request) error {
+func (sf *Server) handleBind(_ context.Context, writer io.Writer, _ *Request) error {
 	// TODO: Support bind
 	if err := SendReply(writer, statute.RepCommandNotSupported, nil); err != nil {
 		return fmt.Errorf("failed to send reply: %v", err)
@@ -159,14 +159,15 @@ func (s *Server) handleBind(_ context.Context, writer io.Writer, _ *Request) err
 }
 
 // handleAssociate is used to handle a connect command
-func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, request *Request) error {
+func (sf *Server) handleAssociate(ctx context.Context, writer io.Writer, request *Request) error {
 	// Attempt to connect
-	dial := s.dial
+	dial := sf.dial
 	if dial == nil {
 		dial = func(ctx context.Context, net_, addr string) (net.Conn, error) {
 			return net.Dial(net_, addr)
 		}
 	}
+
 	target, err := dial(ctx, "udp", request.DestAddr.String())
 	if err != nil {
 		msg := err.Error()
@@ -200,26 +201,26 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, request 
 	}
 	defer bindLn.Close()
 
-	s.logger.Errorf("target addr %v, listen addr: %s", targetUDP.RemoteAddr(), bindLn.LocalAddr())
-	// send BND.ADDR and BND.PORT, client must
+	sf.logger.Errorf("target addr %v, listen addr: %s", targetUDP.RemoteAddr(), bindLn.LocalAddr())
+	// send BND.ADDR and BND.PORT, client used
 	if err = SendReply(writer, statute.RepSuccess, bindLn.LocalAddr()); err != nil {
 		return fmt.Errorf("failed to send reply, %v", err)
 	}
 
-	s.submit(func() {
+	sf.submit(func() {
 		// read from client and write to remote server
 		conns := sync.Map{}
-		bufPool := s.bufferPool.Get()
+		bufPool := sf.bufferPool.Get()
 		defer func() {
 			targetUDP.Close()
 			bindLn.Close()
-			s.bufferPool.Put(bufPool)
+			sf.bufferPool.Put(bufPool)
 		}()
 		for {
 			n, srcAddr, err := bindLn.ReadFrom(bufPool[:cap(bufPool)])
 			if err != nil {
 				if strings.Contains(err.Error(), "use of closed network connection") {
-					s.logger.Errorf("read data from bind listen address %s failed, %v", bindLn.LocalAddr(), err)
+					sf.logger.Errorf("read data from bind listen address %s failed, %v", bindLn.LocalAddr(), err)
 					return
 				}
 				continue
@@ -231,20 +232,20 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, request 
 			}
 
 			if _, ok := conns.LoadOrStore(srcAddr.String(), struct{}{}); !ok {
-				s.submit(func() {
+				sf.submit(func() {
 					// read from remote server and write to client
-					bufPool := s.bufferPool.Get()
+					bufPool := sf.bufferPool.Get()
 					defer func() {
 						targetUDP.Close()
 						bindLn.Close()
-						s.bufferPool.Put(bufPool)
+						sf.bufferPool.Put(bufPool)
 					}()
 
 					for {
 						buf := bufPool[:cap(bufPool)]
 						n, remote, err := targetUDP.ReadFrom(buf)
 						if err != nil {
-							s.logger.Errorf("read data from remote %s failed, %v", targetUDP.RemoteAddr(), err)
+							sf.logger.Errorf("read data from remote %s failed, %v", targetUDP.RemoteAddr(), err)
 							return
 						}
 
@@ -252,32 +253,31 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, request 
 						if err != nil {
 							continue
 						}
-						tmpBufPool := s.bufferPool.Get()
+						tmpBufPool := sf.bufferPool.Get()
 						proBuf := tmpBufPool
 						proBuf = append(proBuf, pkb.Header()...)
 						proBuf = append(proBuf, pkb.Data...)
 						if _, err := bindLn.WriteTo(proBuf, srcAddr); err != nil {
-							s.bufferPool.Put(tmpBufPool)
-							s.logger.Errorf("write data to client %s failed, %v", bindLn.LocalAddr(), err)
+							sf.bufferPool.Put(tmpBufPool)
+							sf.logger.Errorf("write data to client %s failed, %v", bindLn.LocalAddr(), err)
 							return
 						}
-						s.bufferPool.Put(tmpBufPool)
+						sf.bufferPool.Put(tmpBufPool)
 					}
 				})
 			}
 
 			// 把消息写给remote sever
 			if _, err := targetUDP.Write(pk.Data); err != nil {
-				s.logger.Errorf("write data to remote %s failed, %v", targetUDP.RemoteAddr(), err)
+				sf.logger.Errorf("write data to remote %s failed, %v", targetUDP.RemoteAddr(), err)
 				return
 			}
 		}
 	})
 
-	buf := s.bufferPool.Get()
-	defer func() {
-		s.bufferPool.Put(buf)
-	}()
+	buf := sf.bufferPool.Get()
+	defer sf.bufferPool.Put(buf)
+
 	for {
 		_, err := request.Reader.Read(buf[:cap(buf)])
 		if err != nil {
@@ -329,9 +329,9 @@ type closeWriter interface {
 
 // Proxy is used to suffle data from src to destination, and sends errors
 // down a dedicated channel
-func (s *Server) Proxy(dst io.Writer, src io.Reader) error {
-	buf := s.bufferPool.Get()
-	defer s.bufferPool.Put(buf)
+func (sf *Server) Proxy(dst io.Writer, src io.Reader) error {
+	buf := sf.bufferPool.Get()
+	defer sf.bufferPool.Put(buf)
 	_, err := io.CopyBuffer(dst, src, buf[:cap(buf)])
 	if tcpConn, ok := dst.(closeWriter); ok {
 		tcpConn.CloseWrite() // nolint: errcheck
