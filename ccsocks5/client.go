@@ -1,9 +1,9 @@
 package ccsocks5
 
 import (
+	"context"
 	"errors"
 	"net"
-	"time"
 
 	"golang.org/x/net/proxy"
 
@@ -16,19 +16,19 @@ type Client struct {
 	proxyAddr string
 	auth      *proxy.Auth
 	// On command UDP, let server control the tcp and udp connection relationship
-	tcpConn *net.TCPConn
+	proxyConn net.Conn
+	// real server connection udp/tcp
 	net.Conn
-	keepAlivePeriod time.Duration
-	bufferPool      bufferpool.BufPool
+	bufferPool bufferpool.BufPool
+	dial       func(ctx context.Context, network, addr string) (net.Conn, error)
 }
 
 // NewClient This is just create a client.
 // you need to use Dial to create conn.
 func NewClient(proxyAddr string, opts ...Option) *Client {
 	c := &Client{
-		proxyAddr:       proxyAddr,
-		keepAlivePeriod: time.Second * 30,
-		bufferPool:      bufferpool.NewPool(32 * 1024),
+		proxyAddr:  proxyAddr,
+		bufferPool: bufferpool.NewPool(32 * 1024),
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -38,8 +38,8 @@ func NewClient(proxyAddr string, opts ...Option) *Client {
 
 // Close closes the connection.
 func (sf *Client) Close() (err error) {
-	if sf.tcpConn != nil {
-		err = sf.tcpConn.Close()
+	if sf.proxyConn != nil {
+		err = sf.proxyConn.Close()
 	}
 	if sf.Conn != nil {
 		err = sf.Conn.Close()
@@ -76,7 +76,7 @@ func (sf *Client) DialTCP(network, addr string) (net.Conn, error) {
 		return nil, err
 	}
 	conn.Conn = &underConnect{
-		conn.tcpConn,
+		conn.proxyConn.(*net.TCPConn),
 		remoteAddress,
 	}
 	return &Connect{&conn}, nil
@@ -107,9 +107,8 @@ func (sf *Client) DialUDP(network string, laddr *net.UDPAddr, raddr string) (net
 
 	if laddr == nil {
 		laddr = &net.UDPAddr{
-			IP:   conn.tcpConn.LocalAddr().(*net.TCPAddr).IP,
-			Port: conn.tcpConn.LocalAddr().(*net.TCPAddr).Port,
-			Zone: conn.tcpConn.LocalAddr().(*net.TCPAddr).Zone,
+			IP:   net.IPv4zero,
+			Port: 0,
 		}
 	}
 
@@ -132,11 +131,11 @@ func (sf *Client) handshake(command byte, addr string) (string, error) {
 		methods = statute.MethodUserPassAuth
 	}
 
-	_, err := sf.tcpConn.Write(statute.NewMethodRequest(statute.VersionSocks5, []byte{methods}).Bytes())
+	_, err := sf.proxyConn.Write(statute.NewMethodRequest(statute.VersionSocks5, []byte{methods}).Bytes())
 	if err != nil {
 		return "", err
 	}
-	reply, err := statute.ParseMethodReply(sf.tcpConn)
+	reply, err := statute.ParseMethodReply(sf.proxyConn)
 	if err != nil {
 		return "", err
 	}
@@ -149,12 +148,12 @@ func (sf *Client) handshake(command byte, addr string) (string, error) {
 	}
 
 	if methods == statute.MethodUserPassAuth {
-		_, err = sf.tcpConn.Write(statute.NewUserPassRequest(statute.UserPassAuthVersion, []byte(sf.auth.User), []byte(sf.auth.Password)).Bytes())
+		_, err = sf.proxyConn.Write(statute.NewUserPassRequest(statute.UserPassAuthVersion, []byte(sf.auth.User), []byte(sf.auth.Password)).Bytes())
 		if err != nil {
 			return "", err
 		}
 
-		rsp, err := statute.ParseUserPassReply(sf.tcpConn)
+		rsp, err := statute.ParseUserPassReply(sf.proxyConn)
 		if err != nil {
 			return "", err
 		}
@@ -175,11 +174,11 @@ func (sf *Client) handshake(command byte, addr string) (string, error) {
 		Command:    command,
 		DstAddress: a,
 	}
-	if _, err := sf.tcpConn.Write(reqHead.Bytes()); err != nil {
+	if _, err := sf.proxyConn.Write(reqHead.Bytes()); err != nil {
 		return "", err
 	}
 
-	rspHead, err := statute.ParseReply(sf.tcpConn)
+	rspHead, err := statute.ParseReply(sf.proxyConn)
 	if err != nil {
 		return "", err
 	}
@@ -189,19 +188,11 @@ func (sf *Client) handshake(command byte, addr string) (string, error) {
 	return rspHead.BndAddress.String(), nil
 }
 
-func (sf *Client) dialProxyServer(network string) error {
-	conn, err := net.Dial(network, sf.proxyAddr)
-	if err != nil {
-		return err
+func (sf *Client) dialProxyServer(network string) (err error) {
+	if sf.dial != nil {
+		sf.proxyConn, err = sf.dial(context.TODO(), network, sf.proxyAddr)
+	} else { // must tcp
+		sf.proxyConn, err = net.Dial(network, sf.proxyAddr)
 	}
-	sf.tcpConn = conn.(*net.TCPConn)
-
-	if sf.keepAlivePeriod != 0 {
-		err = sf.tcpConn.SetKeepAlivePeriod(sf.keepAlivePeriod)
-	}
-	if err != nil {
-		sf.tcpConn.Close()
-		return err
-	}
-	return nil
+	return
 }

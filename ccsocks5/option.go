@@ -1,7 +1,8 @@
 package ccsocks5
 
 import (
-	"time"
+	"context"
+	"net"
 
 	"golang.org/x/net/proxy"
 
@@ -27,9 +28,9 @@ func WithBufferPool(p bufferpool.BufPool) Option {
 	}
 }
 
-// WithKeepAlivePeriod set tcp keep alive period
-func WithKeepAlivePeriod(t time.Duration) Option {
+// WithDial set custom dial
+func WithDial(dial func(ctx context.Context, network, addr string) (net.Conn, error)) Option {
 	return func(c *Client) {
-		c.keepAlivePeriod = t
+		c.dial = dial
 	}
 }
