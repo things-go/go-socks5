@@ -104,8 +104,7 @@ func (s *Server) Serve(l net.Listener) error {
 			return err
 		}
 		s.submit(func() {
-			err := s.ServeConn(conn)
-			if err != nil {
+			if err := s.ServeConn(conn); err != nil {
 				s.logger.Errorf("server conn %v", err)
 			}
 		})

@@ -49,8 +49,8 @@ func ParseRequest(bufConn io.Reader) (*Request, error) {
 // handleRequest is used for request processing after authentication
 func (s *Server) handleRequest(write io.Writer, req *Request) error {
 	var err error
-	ctx := context.Background()
 
+	ctx := context.Background()
 	// Resolve the address if we have a FQDN
 	dest := req.RawDestAddr
 	if dest.FQDN != "" {
@@ -289,10 +289,11 @@ func (s *Server) handleAssociate(ctx context.Context, writer io.Writer, request 
 }
 
 // SendReply is used to send a reply message
-func SendReply(w io.Writer, resp uint8, bindAddr net.Addr) error {
+// rep: reply status see statute's statute file
+func SendReply(w io.Writer, rep uint8, bindAddr net.Addr) error {
 	rsp := statute.Reply{
 		Version:  statute.VersionSocks5,
-		Response: resp,
+		Response: rep,
 		BndAddress: statute.AddrSpec{
 			AddrType: statute.ATYPIPv4,
 			IP:       net.IPv4zero,
@@ -310,6 +311,7 @@ func SendReply(w io.Writer, resp uint8, bindAddr net.Addr) error {
 		} else {
 			rsp.Response = statute.RepAddrTypeNotSupported
 		}
+
 		if rsp.BndAddress.IP.To4() != nil {
 			rsp.BndAddress.AddrType = statute.ATYPIPv4
 		} else if rsp.BndAddress.IP.To16() != nil {
