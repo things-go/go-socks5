@@ -45,6 +45,18 @@ func TestParseRequest(t *testing.T) {
 			},
 			false,
 		},
+		{
+			"SOCKS5 invalid address type",
+			args{bytes.NewReader([]byte{VersionSocks5, CommandConnect, 0, 0x02, 0, 0, 0, 0, 0, 0})},
+			Request{
+				Version: VersionSocks5,
+				Command: CommandConnect,
+				DstAddr: AddrSpec{
+					AddrType: 0x02,
+				},
+			},
+			true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
