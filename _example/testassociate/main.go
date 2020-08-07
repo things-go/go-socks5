@@ -41,7 +41,7 @@ func main() {
 
 	go func() {
 		time.Sleep(time.Second)
-		c, err := ccsocks5.NewClient("127.0.0.1:10809")
+		c := ccsocks5.NewClient("127.0.0.1:10809")
 		handleErr(err)
 		con, err := c.Dial("udp", lAddr.String())
 		handleErr(err)
