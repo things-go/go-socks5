@@ -44,7 +44,7 @@ Use go get.
 Then import the socks5 server package into your own code.
 
 ```bash
-    import modbus "github.com/thinkgos/go-socks5"
+    import "github.com/thinkgos/go-socks5"
 ```
 
 or  
@@ -52,12 +52,12 @@ or
 import the socks5 client package into your own code.
 
 ```bash
-    import modbus "github.com/thinkgos/go-socks5/ccsocks5"
+    import "github.com/thinkgos/go-socks5/ccsocks5"
 ```
 
 ### Example
 
-Below is a simple example of usage
+Below is a simple example of usage, more see [example](https://github.com/thinkgos/go-socks5/tree/master/_example)
 
 
 ```go
@@ -74,16 +74,16 @@ Below is a simple example of usage
 
 ```go
    // Client: 
-	client := ccsocks5.NewClient(
-		"127.0.0.1:10800",
-		ccsocks5.WithKeepAlivePeriod(time.Second*30),
-	)
-	conn, err := client.Dial("tcp", "127.0.0.1:12345") // server you want to visitor
-	if err != nil {
-		panic(err)
-	}
-	conn.Write([]byte("hahaha"))
-	time.Sleep(time.Second)
+   client := ccsocks5.NewClient(
+    	"127.0.0.1:10800",
+    	ccsocks5.WithKeepAlivePeriod(time.Second*30),
+    )
+    conn, err := client.Dial("tcp", "127.0.0.1:12345") // server you want to visitor
+    if err != nil {
+    	panic(err)
+    }
+    conn.Write([]byte("hahaha"))
+    time.Sleep(time.Second)
 ```
 
 ### Reference
