@@ -171,9 +171,9 @@ func (sf *Client) handshake(command byte, addr string) (string, error) {
 		return "", err
 	}
 	reqHead := statute.Request{
-		Version:    statute.VersionSocks5,
-		Command:    command,
-		DstAddress: a,
+		Version: statute.VersionSocks5,
+		Command: command,
+		DstAddr: a,
 	}
 	if _, err := sf.proxyConn.Write(reqHead.Bytes()); err != nil {
 		return "", err
@@ -186,7 +186,7 @@ func (sf *Client) handshake(command byte, addr string) (string, error) {
 	if rspHead.Response != statute.RepSuccess {
 		return "", errors.New("host unreachable")
 	}
-	return rspHead.BndAddress.String(), nil
+	return rspHead.BndAddr.String(), nil
 }
 
 // SetKeepAlive sets whether the operating system should send

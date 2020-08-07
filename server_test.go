@@ -64,7 +64,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 		Version:  statute.VersionSocks5,
 		Command:  statute.CommandConnect,
 		Reserved: 0,
-		DstAddress: statute.AddrSpec{
+		DstAddr: statute.AddrSpec{
 			FQDN:     "",
 			IP:       net.ParseIP("127.0.0.1"),
 			Port:     lAddr.Port,
@@ -87,7 +87,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 		Version:  statute.VersionSocks5,
 		Command:  statute.RepSuccess,
 		Reserved: 0,
-		DstAddress: statute.AddrSpec{
+		DstAddr: statute.AddrSpec{
 			FQDN:     "",
 			IP:       net.ParseIP("127.0.0.1"),
 			Port:     0,
@@ -156,7 +156,7 @@ func TestSOCKS5_Associate(t *testing.T) {
 		Version:  statute.VersionSocks5,
 		Command:  statute.CommandAssociate,
 		Reserved: 0,
-		DstAddress: statute.AddrSpec{
+		DstAddr: statute.AddrSpec{
 			FQDN:     "",
 			IP:       locIP,
 			Port:     lAddr.Port,
@@ -185,11 +185,11 @@ func TestSOCKS5_Associate(t *testing.T) {
 	require.Equal(t, statute.VersionSocks5, rspHead.Version)
 	require.Equal(t, statute.RepSuccess, rspHead.Response)
 
-	// t.Logf("proxy bind listen port: %d", rspHead.BndAddress.Port)
+	// t.Logf("proxy bind listen port: %d", rspHead.BndAddr.Port)
 
 	udpConn, err := net.DialUDP("udp", nil, &net.UDPAddr{
 		IP:   locIP,
-		Port: rspHead.BndAddress.Port,
+		Port: rspHead.BndAddr.Port,
 	})
 	require.NoError(t, err)
 	// Send a ping

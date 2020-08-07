@@ -1,6 +1,7 @@
 package statute
 
 import (
+	"encoding/binary"
 	"errors"
 	"math"
 	"net"
@@ -49,7 +50,7 @@ func ParseDatagram(b []byte) (da Datagram, err error) {
 	case ATYPIPv4:
 		headLen += net.IPv4len + 2
 		da.DstAddr.IP = net.IPv4(b[4], b[5], b[6], b[7])
-		da.DstAddr.Port = buildPort(b[4+net.IPv4len], b[4+net.IPv4len+1])
+		da.DstAddr.Port = int(binary.BigEndian.Uint16((b[4+net.IPv4len:])))
 	case ATYPIPv6:
 		headLen += net.IPv6len + 2
 		if len(b) <= headLen {
@@ -58,7 +59,7 @@ func ParseDatagram(b []byte) (da Datagram, err error) {
 		}
 
 		da.DstAddr.IP = b[4 : 4+net.IPv6len]
-		da.DstAddr.Port = buildPort(b[4+net.IPv6len], b[4+net.IPv6len+1])
+		da.DstAddr.Port = int(binary.BigEndian.Uint16(b[4+net.IPv6len:]))
 	case ATYPDomain:
 		addrLen := int(b[4])
 		headLen += 1 + addrLen + 2
@@ -69,7 +70,7 @@ func ParseDatagram(b []byte) (da Datagram, err error) {
 		str := make([]byte, addrLen)
 		copy(str, b[5:5+addrLen])
 		da.DstAddr.FQDN = string(str)
-		da.DstAddr.Port = buildPort(b[5+addrLen], b[5+addrLen+1])
+		da.DstAddr.Port = int(binary.BigEndian.Uint16(b[5+addrLen:]))
 	default:
 		err = ErrUnrecognizedAddrType
 		return
@@ -114,8 +115,7 @@ func (sf *Datagram) values(hasData bool) (bs []byte) {
 		bs = append(bs, byte(len(sf.DstAddr.FQDN)))
 	}
 	bs = append(bs, addr...)
-	hi, lo := breakPort(sf.DstAddr.Port)
-	bs = append(bs, hi, lo)
+	bs = append(bs, byte(sf.DstAddr.Port>>8), byte(sf.DstAddr.Port))
 	if hasData {
 		bs = append(bs, sf.Data...)
 	}

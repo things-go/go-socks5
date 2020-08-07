@@ -41,7 +41,7 @@ func ParseRequest(bufConn io.Reader) (*Request, error) {
 	}
 	return &Request{
 		Request:     hd,
-		RawDestAddr: &hd.DstAddress,
+		RawDestAddr: &hd.DstAddr,
 		Reader:      bufConn,
 	}, nil
 }
@@ -294,7 +294,7 @@ func SendReply(w io.Writer, rep uint8, bindAddr net.Addr) error {
 	rsp := statute.Reply{
 		Version:  statute.VersionSocks5,
 		Response: rep,
-		BndAddress: statute.AddrSpec{
+		BndAddr: statute.AddrSpec{
 			AddrType: statute.ATYPIPv4,
 			IP:       net.IPv4zero,
 			Port:     0,
@@ -303,19 +303,19 @@ func SendReply(w io.Writer, rep uint8, bindAddr net.Addr) error {
 
 	if rsp.Response == statute.RepSuccess {
 		if tcpAddr, ok := bindAddr.(*net.TCPAddr); ok && tcpAddr != nil {
-			rsp.BndAddress.IP = tcpAddr.IP
-			rsp.BndAddress.Port = tcpAddr.Port
+			rsp.BndAddr.IP = tcpAddr.IP
+			rsp.BndAddr.Port = tcpAddr.Port
 		} else if udpAddr, ok := bindAddr.(*net.UDPAddr); ok && udpAddr != nil {
-			rsp.BndAddress.IP = udpAddr.IP
-			rsp.BndAddress.Port = udpAddr.Port
+			rsp.BndAddr.IP = udpAddr.IP
+			rsp.BndAddr.Port = udpAddr.Port
 		} else {
 			rsp.Response = statute.RepAddrTypeNotSupported
 		}
 
-		if rsp.BndAddress.IP.To4() != nil {
-			rsp.BndAddress.AddrType = statute.ATYPIPv4
-		} else if rsp.BndAddress.IP.To16() != nil {
-			rsp.BndAddress.AddrType = statute.ATYPIPv6
+		if rsp.BndAddr.IP.To4() != nil {
+			rsp.BndAddr.AddrType = statute.ATYPIPv4
+		} else if rsp.BndAddr.IP.To16() != nil {
+			rsp.BndAddr.AddrType = statute.ATYPIPv6
 		}
 	}
 	// Send the message

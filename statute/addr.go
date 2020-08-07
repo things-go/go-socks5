@@ -18,22 +18,22 @@ type AddrSpec struct {
 
 // String returns a string suitable to dial; prefer returning IP-based
 // address, fallback to FQDN
-func (a *AddrSpec) String() string {
-	if 0 != len(a.IP) {
-		return net.JoinHostPort(a.IP.String(), strconv.Itoa(a.Port))
+func (sf *AddrSpec) String() string {
+	if 0 != len(sf.IP) {
+		return net.JoinHostPort(sf.IP.String(), strconv.Itoa(sf.Port))
 	}
-	return net.JoinHostPort(a.FQDN, strconv.Itoa(a.Port))
+	return net.JoinHostPort(sf.FQDN, strconv.Itoa(sf.Port))
 }
 
 // Address returns a string which may be specified
 // if IPv4/IPv6 will return < ip:port >
 // if FQDN will return < domain ip:port >
 // Note: do not used to dial, Please use String
-func (a AddrSpec) Address() string {
-	if a.FQDN != "" {
-		return fmt.Sprintf("%s (%s):%d", a.FQDN, a.IP, a.Port)
+func (sf AddrSpec) Address() string {
+	if sf.FQDN != "" {
+		return fmt.Sprintf("%s (%s):%d", sf.FQDN, sf.IP, sf.Port)
 	}
-	return fmt.Sprintf("%s:%d", a.IP, a.Port)
+	return fmt.Sprintf("%s:%d", sf.IP, sf.Port)
 }
 
 // ParseAddrSpec parse address to the AddrSpec address
@@ -55,6 +55,3 @@ func ParseAddrSpec(address string) (as AddrSpec, err error) {
 	as.Port, err = strconv.Atoi(port)
 	return
 }
-
-func buildPort(hi, lo byte) int        { return (int(hi) << 8) | int(lo) }
-func breakPort(port int) (hi, lo byte) { return byte(port >> 8), byte(port) }
