@@ -57,18 +57,15 @@ func TestDatagram(t *testing.T) {
 }
 
 func TestParseDatagram(t *testing.T) {
-	type args struct {
-		b []byte
-	}
 	tests := []struct {
 		name    string
-		args    args
+		input   []byte
 		wantDa  Datagram
 		wantErr bool
 	}{
 		{
 			"IPv4",
-			args{[]byte{0, 0, 0, ATYPIPv4, 127, 0, 0, 1, 0x1f, 0x90, 1, 2, 3}},
+			[]byte{0, 0, 0, ATYPIPv4, 127, 0, 0, 1, 0x1f, 0x90, 1, 2, 3},
 			Datagram{
 				0, 0, AddrSpec{
 					IP:       net.IPv4(127, 0, 0, 1),
@@ -81,7 +78,7 @@ func TestParseDatagram(t *testing.T) {
 		},
 		{
 			"IPv6",
-			args{[]byte{0, 0, 0, ATYPIPv6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0x1f, 0x90, 1, 2, 3}},
+			[]byte{0, 0, 0, ATYPIPv6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0x1f, 0x90, 1, 2, 3},
 			Datagram{
 				0, 0, AddrSpec{
 					IP:       net.IPv6loopback,
@@ -94,7 +91,7 @@ func TestParseDatagram(t *testing.T) {
 		},
 		{
 			"FQDN",
-			args{[]byte{0, 0, 0, ATYPDomain, 9, 'l', 'o', 'c', 'a', 'l', 'h', 'o', 's', 't', 0x1f, 0x90, 1, 2, 3}},
+			[]byte{0, 0, 0, ATYPDomain, 9, 'l', 'o', 'c', 'a', 'l', 'h', 'o', 's', 't', 0x1f, 0x90, 1, 2, 3},
 			Datagram{
 				0, 0, AddrSpec{
 					FQDN:     "localhost",
@@ -107,32 +104,32 @@ func TestParseDatagram(t *testing.T) {
 		},
 		{
 			"invalid address type",
-			args{[]byte{0, 0, 0, 0x02, 127, 0, 0, 1, 0x1f, 0x90}},
+			[]byte{0, 0, 0, 0x02, 127, 0, 0, 1, 0x1f, 0x90},
 			Datagram{},
 			true,
 		},
 		{
 			"less min length",
-			args{[]byte{0, 0, 0, ATYPIPv4, 127, 0, 0, 1, 0x1f}},
+			[]byte{0, 0, 0, ATYPIPv4, 127, 0, 0, 1, 0x1f},
 			Datagram{},
 			true,
 		},
 		{
 			"less domain length",
-			args{[]byte{0, 0, 0, ATYPDomain, 10, 127, 0, 0, 1, 0x1f, 0x09}},
+			[]byte{0, 0, 0, ATYPDomain, 10, 127, 0, 0, 1, 0x1f, 0x09},
 			Datagram{},
 			true,
 		},
 		{
 			"less ipv6 length",
-			args{[]byte{0, 0, 0, ATYPIPv6, 127, 0, 0, 1, 0x1f, 0x09}},
+			[]byte{0, 0, 0, ATYPIPv6, 127, 0, 0, 1, 0x1f, 0x09},
 			Datagram{},
 			true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotDa, err := ParseDatagram(tt.args.b)
+			gotDa, err := ParseDatagram(tt.input)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseDatagram() error = %v, wantErr %v", err, tt.wantErr)
 				return

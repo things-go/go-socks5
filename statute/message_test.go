@@ -9,18 +9,15 @@ import (
 )
 
 func TestParseRequest(t *testing.T) {
-	type args struct {
-		r io.Reader
-	}
 	tests := []struct {
 		name    string
-		args    args
+		reader  io.Reader
 		want    Request
 		wantErr bool
 	}{
 		{
 			"SOCKS5 IPV4",
-			args{bytes.NewReader([]byte{VersionSocks5, CommandConnect, 0, ATYPIPv4, 127, 0, 0, 1, 0x1f, 0x90})},
+			bytes.NewReader([]byte{VersionSocks5, CommandConnect, 0, ATYPIPv4, 127, 0, 0, 1, 0x1f, 0x90}),
 			Request{
 				VersionSocks5, CommandConnect, 0,
 				AddrSpec{IP: net.IPv4(127, 0, 0, 1), Port: 8080, AddrType: ATYPIPv4},
@@ -29,7 +26,7 @@ func TestParseRequest(t *testing.T) {
 		},
 		{
 			"SOCKS5 IPV6",
-			args{bytes.NewReader([]byte{VersionSocks5, CommandConnect, 0, ATYPIPv6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1f, 0x90})},
+			bytes.NewReader([]byte{VersionSocks5, CommandConnect, 0, ATYPIPv6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1f, 0x90}),
 			Request{
 				VersionSocks5, CommandConnect, 0,
 				AddrSpec{IP: net.IPv6zero, Port: 8080, AddrType: ATYPIPv6},
@@ -38,7 +35,7 @@ func TestParseRequest(t *testing.T) {
 		},
 		{
 			"SOCKS5 FQDN",
-			args{bytes.NewReader([]byte{VersionSocks5, CommandConnect, 0, ATYPDomain, 9, 'l', 'o', 'c', 'a', 'l', 'h', 'o', 's', 't', 0x1f, 0x90})},
+			bytes.NewReader([]byte{VersionSocks5, CommandConnect, 0, ATYPDomain, 9, 'l', 'o', 'c', 'a', 'l', 'h', 'o', 's', 't', 0x1f, 0x90}),
 			Request{
 				VersionSocks5, CommandConnect, 0,
 				AddrSpec{FQDN: "localhost", Port: 8080, AddrType: ATYPDomain},
@@ -47,7 +44,7 @@ func TestParseRequest(t *testing.T) {
 		},
 		{
 			"SOCKS5 invalid address type",
-			args{bytes.NewReader([]byte{VersionSocks5, CommandConnect, 0, 0x02, 0, 0, 0, 0, 0, 0})},
+			bytes.NewReader([]byte{VersionSocks5, CommandConnect, 0, 0x02, 0, 0, 0, 0, 0, 0}),
 			Request{
 				Version: VersionSocks5,
 				Command: CommandConnect,
@@ -60,7 +57,7 @@ func TestParseRequest(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotHd, err := ParseRequest(tt.args.r)
+			gotHd, err := ParseRequest(tt.reader)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseRequest() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -114,18 +111,15 @@ func TestRequest_Bytes(t *testing.T) {
 }
 
 func TestParseReply(t *testing.T) {
-	type args struct {
-		r io.Reader
-	}
 	tests := []struct {
 		name    string
-		args    args
+		reader  io.Reader
 		want    Reply
 		wantErr bool
 	}{
 		{
 			"SOCKS5 IPV4",
-			args{bytes.NewReader([]byte{VersionSocks5, RepSuccess, 0, ATYPIPv4, 127, 0, 0, 1, 0x1f, 0x90})},
+			bytes.NewReader([]byte{VersionSocks5, RepSuccess, 0, ATYPIPv4, 127, 0, 0, 1, 0x1f, 0x90}),
 			Reply{
 				VersionSocks5, RepSuccess, 0,
 				AddrSpec{IP: net.IPv4(127, 0, 0, 1), Port: 8080, AddrType: ATYPIPv4},
@@ -134,7 +128,7 @@ func TestParseReply(t *testing.T) {
 		},
 		{
 			"SOCKS5 IPV6",
-			args{bytes.NewReader([]byte{VersionSocks5, RepSuccess, 0, ATYPIPv6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1f, 0x90})},
+			bytes.NewReader([]byte{VersionSocks5, RepSuccess, 0, ATYPIPv6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1f, 0x90}),
 			Reply{
 				VersionSocks5, RepSuccess, 0,
 				AddrSpec{IP: net.IPv6zero, Port: 8080, AddrType: ATYPIPv6},
@@ -143,7 +137,7 @@ func TestParseReply(t *testing.T) {
 		},
 		{
 			"SOCKS5 FQDN",
-			args{bytes.NewReader([]byte{VersionSocks5, RepSuccess, 0, ATYPDomain, 9, 'l', 'o', 'c', 'a', 'l', 'h', 'o', 's', 't', 0x1f, 0x90})},
+			bytes.NewReader([]byte{VersionSocks5, RepSuccess, 0, ATYPDomain, 9, 'l', 'o', 'c', 'a', 'l', 'h', 'o', 's', 't', 0x1f, 0x90}),
 			Reply{
 				VersionSocks5, RepSuccess, 0,
 				AddrSpec{FQDN: "localhost", Port: 8080, AddrType: ATYPDomain},
@@ -153,7 +147,7 @@ func TestParseReply(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseReply(tt.args.r)
+			got, err := ParseReply(tt.reader)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseReply() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -136,8 +136,8 @@ func (sf *Server) handleConnect(ctx context.Context, writer io.Writer, request *
 
 	// Start proxying
 	errCh := make(chan error, 2)
-	sf.submit(func() { errCh <- sf.Proxy(target, request.Reader) })
-	sf.submit(func() { errCh <- sf.Proxy(writer, target) })
+	sf.goFunc(func() { errCh <- sf.Proxy(target, request.Reader) })
+	sf.goFunc(func() { errCh <- sf.Proxy(writer, target) })
 	// Wait
 	for i := 0; i < 2; i++ {
 		e := <-errCh
@@ -207,7 +207,7 @@ func (sf *Server) handleAssociate(ctx context.Context, writer io.Writer, request
 		return fmt.Errorf("failed to send reply, %v", err)
 	}
 
-	sf.submit(func() {
+	sf.goFunc(func() {
 		// read from client and write to remote server
 		conns := sync.Map{}
 		bufPool := sf.bufferPool.Get()
@@ -232,7 +232,7 @@ func (sf *Server) handleAssociate(ctx context.Context, writer io.Writer, request
 			}
 
 			if _, ok := conns.LoadOrStore(srcAddr.String(), struct{}{}); !ok {
-				sf.submit(func() {
+				sf.goFunc(func() {
 					// read from remote server and write to client
 					bufPool := sf.bufferPool.Get()
 					defer func() {

@@ -44,6 +44,11 @@ func ParseAddrSpec(address string) (as AddrSpec, err error) {
 	if err != nil {
 		return
 	}
+	as.Port, err = strconv.Atoi(port)
+	if err != nil {
+		return
+	}
+
 	ip := net.ParseIP(host)
 	if ip4 := ip.To4(); ip4 != nil {
 		as.AddrType, as.IP = ATYPIPv4, ip
@@ -52,6 +57,5 @@ func ParseAddrSpec(address string) (as AddrSpec, err error) {
 	} else {
 		as.AddrType, as.FQDN = ATYPDomain, host
 	}
-	as.Port, err = strconv.Atoi(port)
 	return
 }

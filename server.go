@@ -108,7 +108,7 @@ func (sf *Server) Serve(l net.Listener) error {
 		if err != nil {
 			return err
 		}
-		sf.submit(func() {
+		sf.goFunc(func() {
 			if err := sf.ServeConn(conn); err != nil {
 				sf.logger.Errorf("server: %v", err)
 			}
@@ -178,7 +178,7 @@ func (sf *Server) authenticate(conn io.Writer, bufConn io.Reader, userAddr strin
 	return nil, statute.ErrNoSupportedAuth
 }
 
-func (sf *Server) submit(f func()) {
+func (sf *Server) goFunc(f func()) {
 	if sf.gPool == nil || sf.gPool.Submit(f) != nil {
 		go f()
 	}
