@@ -1,9 +1,10 @@
 # go-socks5 
 
-[![Build Status](https://travis-ci.org/thinkgos/go-socks5.svg?branch=master)](https://travis-ci.org/thinkgos/go-socks5)
+[![GoDoc](https://godoc.org/github.com/thinkgos/go-socks5?status.svg)](https://godoc.org/github.com/thinkgos/go-socks5)
 [![Go.Dev reference](https://img.shields.io/badge/go.dev-reference-blue?logo=go&logoColor=white)](https://pkg.go.dev/github.com/thinkgos/go-socks5?tab=doc)
-[![codecov](https://codecov.io/gh/thinkgos/go-socks5/branch/master/graph/badge.svg)](https://codecov.io/gh/thinkgos/go-socks5)
+[![Build Status](https://travis-ci.org/thinkgos/go-socks5.svg?branch=master)](https://travis-ci.org/thinkgos/go-socks5)
 ![Action Status](https://github.com/thinkgos/go-socks5/workflows/Go/badge.svg)
+[![codecov](https://codecov.io/gh/thinkgos/go-socks5/branch/master/graph/badge.svg)](https://codecov.io/gh/thinkgos/go-socks5)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thinkgos/go-socks5)](https://goreportcard.com/report/github.com/thinkgos/go-socks5)
 [![License](https://img.shields.io/github/license/thinkgos/go-socks5)](https://github.com/thinkgos/go-socks5/raw/master/LICENSE)
 [![Tag](https://img.shields.io/github/v/tag/thinkgos/go-socks5)](https://github.com/thinkgos/go-socks5/tags)
