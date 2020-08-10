@@ -1,5 +1,9 @@
 package statute
 
+import (
+	"errors"
+)
+
 // VersionSocks5 socks protocol version
 const VersionSocks5 = byte(0x05)
 
@@ -46,4 +50,11 @@ const (
 	// auth status
 	AuthSuccess = byte(0x00)
 	AuthFailure = byte(0x01)
+)
+
+// error defined
+var (
+	ErrUnrecognizedAddrType = errors.New("Unrecognized address type")
+	ErrNotSupportVersion    = errors.New("not support version")
+	ErrNotSupportMethod     = errors.New("not support method")
 )
