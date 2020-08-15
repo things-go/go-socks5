@@ -102,12 +102,12 @@ func (h Request) Bytes() (b []byte) {
 }
 
 // Reply represents the SOCKS5 reply, it contains everything that is not payload
-// The SOCKS5 response is formed as follows:
+// The SOCKS5 reply is formed as follows:
 //	+-----+-----+-------+------+----------+-----------+
 //	| VER | REP |  RSV  | ATYP | BND.ADDR | BND].PORT |
-//	+-----+-----+-------+------+----------+----------+
-//	|  1  |  1  | X'00' |  1   | Variable |    2     |
-//	+-----+-----+-------+------+----------+----------+
+//	+-----+-----+-------+------+----------+-----------+
+//	|  1  |  1  | X'00' |  1   | Variable |    2      |
+//	+-----+-----+-------+------+----------+-----------+
 type Reply struct {
 	// Version of socks protocol for message
 	Version byte
@@ -150,7 +150,7 @@ func ParseReply(r io.Reader) (rep Reply, err error) {
 	// Read the version and command
 	tmp := []byte{0, 0}
 	if _, err = io.ReadFull(r, tmp); err != nil {
-		return rep, fmt.Errorf("failed to get request version and command, %v", err)
+		return rep, fmt.Errorf("failed to get reply version and command, %v", err)
 	}
 	rep.Version, rep.Response = tmp[0], tmp[1]
 	if rep.Version != VersionSocks5 {
@@ -158,33 +158,33 @@ func ParseReply(r io.Reader) (rep Reply, err error) {
 	}
 	// Read reserved and address type
 	if _, err = io.ReadFull(r, tmp); err != nil {
-		return rep, fmt.Errorf("failed to get request RSV and address type, %v", err)
+		return rep, fmt.Errorf("failed to get reply RSV and address type, %v", err)
 	}
 	rep.Reserved, rep.BndAddr.AddrType = tmp[0], tmp[1]
 
 	switch rep.BndAddr.AddrType {
 	case ATYPDomain:
 		if _, err = io.ReadFull(r, tmp[:1]); err != nil {
-			return rep, fmt.Errorf("failed to get request, %v", err)
+			return rep, fmt.Errorf("failed to get reply, %v", err)
 		}
 		domainLen := int(tmp[0])
 		addr := make([]byte, domainLen+2)
 		if _, err = io.ReadFull(r, addr); err != nil {
-			return rep, fmt.Errorf("failed to get request, %v", err)
+			return rep, fmt.Errorf("failed to get reply, %v", err)
 		}
 		rep.BndAddr.FQDN = string(addr[:domainLen])
 		rep.BndAddr.Port = int(binary.BigEndian.Uint16(addr[domainLen:]))
 	case ATYPIPv4:
 		addr := make([]byte, net.IPv4len+2)
 		if _, err = io.ReadFull(r, addr); err != nil {
-			return rep, fmt.Errorf("failed to get request, %v", err)
+			return rep, fmt.Errorf("failed to get reply, %v", err)
 		}
 		rep.BndAddr.IP = net.IPv4(addr[0], addr[1], addr[2], addr[3])
 		rep.BndAddr.Port = int(binary.BigEndian.Uint16(addr[net.IPv4len:]))
 	case ATYPIPv6:
 		addr := make([]byte, net.IPv6len+2)
 		if _, err = io.ReadFull(r, addr); err != nil {
-			return rep, fmt.Errorf("failed to get request, %v", err)
+			return rep, fmt.Errorf("failed to get reply, %v", err)
 		}
 		rep.BndAddr.IP = addr[:net.IPv6len]
 		rep.BndAddr.Port = int(binary.BigEndian.Uint16(addr[net.IPv6len:]))

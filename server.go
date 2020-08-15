@@ -103,6 +103,7 @@ func (sf *Server) ListenAndServe(network, addr string) error {
 
 // Serve is used to serve connections from a listener
 func (sf *Server) Serve(l net.Listener) error {
+	defer l.Close() // nolint: errcheck
 	for {
 		conn, err := l.Accept()
 		if err != nil {
