@@ -166,6 +166,10 @@ func (sf *Client) handshake(command byte, addr string) (string, error) {
 		}
 	}
 
+	if command == statute.CommandAssociate {
+		addr = sf.proxyConn.LocalAddr().String()
+	}
+	
 	a, err := statute.ParseAddrSpec(addr)
 	if err != nil {
 		return "", err
