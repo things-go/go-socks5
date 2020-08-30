@@ -68,7 +68,7 @@ func ParseUserPassRequest(r io.Reader) (nup UserPassRequest, err error) {
 	// Get the password
 	nup.Pass = make([]byte, nup.Plen)
 	_, err = io.ReadAtLeast(r, nup.Pass, int(nup.Plen))
-	return
+	return nup, err
 }
 
 // Bytes to bytes

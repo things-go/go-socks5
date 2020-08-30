@@ -19,7 +19,7 @@ type GPool interface {
 	Submit(f func()) error
 }
 
-// Server is reponsible for accepting connections and handling
+// Server is responsible for accepting connections and handling
 // the details of the SOCKS5 protocol
 type Server struct {
 	authMethods map[uint8]Authenticator
@@ -103,7 +103,7 @@ func (sf *Server) ListenAndServe(network, addr string) error {
 
 // Serve is used to serve connections from a listener
 func (sf *Server) Serve(l net.Listener) error {
-	defer l.Close() // nolint: errcheck
+	defer l.Close()
 	for {
 		conn, err := l.Accept()
 		if err != nil {
@@ -167,7 +167,8 @@ func (sf *Server) ServeConn(conn net.Conn) error {
 }
 
 // authenticate is used to handle connection authentication
-func (sf *Server) authenticate(conn io.Writer, bufConn io.Reader, userAddr string, methods []byte) (*AuthContext, error) {
+func (sf *Server) authenticate(conn io.Writer, bufConn io.Reader,
+	userAddr string, methods []byte) (*AuthContext, error) {
 	// Select a usable method
 	for _, method := range methods {
 		if cator, found := sf.authMethods[method]; found {

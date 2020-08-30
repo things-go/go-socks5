@@ -34,7 +34,7 @@ func TestRequest_Connect(t *testing.T) {
 	go func() {
 		conn, err := l.Accept()
 		require.NoError(t, err)
-		defer conn.Close() // nolint: errcheck
+		defer conn.Close()
 
 		buf := make([]byte, 4)
 		_, err = io.ReadAtLeast(conn, buf, 4)
@@ -59,7 +59,7 @@ func TestRequest_Connect(t *testing.T) {
 		statute.ATYPIPv4, 127, 0, 0, 1, byte(lAddr.Port >> 8), byte(lAddr.Port),
 	})
 	// Send a ping
-	buf.Write([]byte("ping")) // nolint: errcheck
+	buf.Write([]byte("ping"))
 
 	// Handle the request
 	rsp := new(MockConn)

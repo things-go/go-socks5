@@ -149,7 +149,8 @@ func (sf *Client) handshake(command byte, addr string) (string, error) {
 	}
 
 	if methods == statute.MethodUserPassAuth {
-		_, err = sf.proxyConn.Write(statute.NewUserPassRequest(statute.UserPassAuthVersion, []byte(sf.auth.User), []byte(sf.auth.Password)).Bytes())
+		_, err = sf.proxyConn.Write(statute.NewUserPassRequest(statute.UserPassAuthVersion,
+			[]byte(sf.auth.User), []byte(sf.auth.Password)).Bytes())
 		if err != nil {
 			return "", err
 		}

@@ -186,7 +186,6 @@ func TestSOCKS5_Associate(t *testing.T) {
 	require.Equal(t, statute.RepSuccess, rspHead.Response)
 
 	// t.Logf("proxy bind listen port: %d", rspHead.BndAddr.Port)
-
 	udpConn, err := net.DialUDP("udp", nil, &net.UDPAddr{
 		IP:   locIP,
 		Port: rspHead.BndAddr.Port,

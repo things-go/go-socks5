@@ -86,7 +86,7 @@ func (h Request) Bytes() (b []byte) {
 	} else if h.DstAddr.AddrType == ATYPIPv6 {
 		length += net.IPv6len
 		addr = h.DstAddr.IP.To16()
-	} else { //ATYPDomain
+	} else { // ATYPDomain
 		length += 1 + len(h.DstAddr.FQDN)
 		addr = []byte(h.DstAddr.FQDN)
 	}
@@ -130,7 +130,7 @@ func (sf Reply) Bytes() (b []byte) {
 	} else if sf.BndAddr.AddrType == ATYPIPv6 {
 		length += net.IPv6len
 		addr = sf.BndAddr.IP.To16()
-	} else { //ATYPDomain
+	} else { // ATYPDomain
 		length += 1 + len(sf.BndAddr.FQDN)
 		addr = []byte(sf.BndAddr.FQDN)
 	}

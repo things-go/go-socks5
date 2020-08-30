@@ -75,7 +75,7 @@ func ParseDatagram(b []byte) (da Datagram, err error) {
 		return
 	}
 	da.Data = b[headLen:]
-	return
+	return da, nil
 }
 
 // Header returns s slice of datagram header except data
@@ -120,5 +120,5 @@ func (sf *Datagram) values(hasData bool) (bs []byte) {
 	if hasData {
 		bs = append(bs, sf.Data...)
 	}
-	return
+	return bs
 }
