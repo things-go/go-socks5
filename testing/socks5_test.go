@@ -117,7 +117,7 @@ func Test_socks5_Associate(t *testing.T) {
 
 	// read response
 	out := make([]byte, 4)
-	conn.SetDeadline(time.Now().Add(time.Second)) // nolint: errcheck
+	conn.SetDeadline(time.Now().Add(time.Second * 5)) // nolint: errcheck
 	_, err = io.ReadFull(conn, out)
 	conn.SetDeadline(time.Time{}) // nolint: errcheck
 	require.NoError(t, err)
