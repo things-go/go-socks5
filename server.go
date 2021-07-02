@@ -22,14 +22,13 @@ type GPool interface {
 // Server is responsible for accepting connections and handling
 // the details of the SOCKS5 protocol
 type Server struct {
-	authMethods map[uint8]Authenticator
+	authMethods []Authenticator
 	// AuthMethods can be provided to implement custom authentication
 	// By default, "no-auth" mode is enabled.
 	// For password-based auth use UserPassAuthenticator.
-	authCustomMethods []Authenticator
 	// If provided, username/password authentication is enabled,
 	// by appending a UserPassAuthenticator to AuthMethods. If not provided,
-	// and authCustomMethods is nil, then "no-auth" mode is enabled.
+	// and authMethods is nil, then "no-auth" mode is enabled.
 	credentials CredentialStore
 	// resolver can be provided to do custom name resolution.
 	// Defaults to DNSResolver if not provided.
@@ -61,12 +60,11 @@ type Server struct {
 // NewServer creates a new Server
 func NewServer(opts ...Option) *Server {
 	srv := &Server{
-		authMethods:       make(map[uint8]Authenticator),
-		authCustomMethods: []Authenticator{},
-		bufferPool:        bufferpool.NewPool(32 * 1024),
-		resolver:          DNSResolver{},
-		rules:             NewPermitAll(),
-		logger:            NewLogger(log.New(ioutil.Discard, "socks5: ", log.LstdFlags)),
+		authMethods: []Authenticator{},
+		bufferPool:  bufferpool.NewPool(32 * 1024),
+		resolver:    DNSResolver{},
+		rules:       NewPermitAll(),
+		logger:      NewLogger(log.New(ioutil.Discard, "socks5: ", log.LstdFlags)),
 		dial: func(ctx context.Context, net_, addr string) (net.Conn, error) {
 			return net.Dial(net_, addr)
 		},
@@ -77,16 +75,12 @@ func NewServer(opts ...Option) *Server {
 	}
 
 	// Ensure we have at least one authentication method enabled
-	if (len(srv.authCustomMethods) == 0) && srv.credentials != nil {
-		srv.authCustomMethods = []Authenticator{&UserPassAuthenticator{srv.credentials}}
+	if (len(srv.authMethods) == 0) && srv.credentials != nil {
+		srv.authMethods = []Authenticator{&UserPassAuthenticator{srv.credentials}}
 	}
 
-	if len(srv.authCustomMethods) == 0 {
-		srv.authCustomMethods = []Authenticator{&NoAuthAuthenticator{}}
-	}
-
-	for _, v := range srv.authCustomMethods {
-		srv.authMethods[v.GetCode()] = v
+	if len(srv.authMethods) == 0 {
+		srv.authMethods = []Authenticator{&NoAuthAuthenticator{}}
 	}
 
 	return srv
@@ -170,9 +164,11 @@ func (sf *Server) ServeConn(conn net.Conn) error {
 func (sf *Server) authenticate(conn io.Writer, bufConn io.Reader,
 	userAddr string, methods []byte) (*AuthContext, error) {
 	// Select a usable method
-	for _, method := range methods {
-		if cator, found := sf.authMethods[method]; found {
-			return cator.Authenticate(bufConn, conn, userAddr)
+	for _, auth := range sf.authMethods {
+		for _, method := range methods {
+			if auth.GetCode() == method {
+				return auth.Authenticate(bufConn, conn, userAddr)
+			}
 		}
 	}
 	// No usable method found
