@@ -3,8 +3,8 @@ package ccsocks5
 import (
 	"net"
 
-	"github.com/thinkgos/go-socks5/bufferpool"
-	"github.com/thinkgos/go-socks5/statute"
+	"github.com/things-go/go-socks5/bufferpool"
+	"github.com/things-go/go-socks5/statute"
 )
 
 // underConnect under connect

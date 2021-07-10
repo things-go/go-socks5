@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/proxy"
 
-	"github.com/thinkgos/go-socks5"
-	"github.com/thinkgos/go-socks5/bufferpool"
-	"github.com/thinkgos/go-socks5/ccsocks5"
+	"github.com/things-go/go-socks5"
+	"github.com/things-go/go-socks5/bufferpool"
+	"github.com/things-go/go-socks5/ccsocks5"
 )
 
 func Test_Socks5_Connect(t *testing.T) {

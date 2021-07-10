@@ -6,10 +6,8 @@ os:
   - linux
 
 go:
-  - 1.14.x
   - 1.15.x
-
-go_import_path: github.com/thinkgos/go-socks5
+  - 1.16.x
 
 before_install:
   - if [[ "${GO111MODULE}" = "on" ]]; then mkdir "${HOME}/go"; export GOPATH="${HOME}/go";
@@ -18,7 +16,7 @@ before_install:
 
 install:
   - go get -u golang.org/x/lint/golint
-  - curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.30.0
+  - curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
   - curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
 
 script:
@@ -42,4 +40,3 @@ after_success:
 env:
   global:
     - GO111MODULE=on
-    - secure: u1rSojKLa1qhE+L+kuXzPbp1Q2GljTdu7GAC0vmMLBhNXX9masBiEisOKz3GQtaz0SY031u05/UA2MS7WVdru0vEL6v6pAKQkKbtg/m4DbspwD9aIUlZMs7BJpkHegGnS/gQh2hyPTYPAMfjPWqvFDYrZ+lbZrz5l3B6Wfi0CeVT5EKLrWvjzsottaQSi3Yby4uMDolCYe4LETrQ98SRBB4M0JBZdmn38S/NdxQefCVICSjaG30UyxKmYp7BzYzZ/Dp+O1UDdOlg8Y2J0emN4Jz5k8O+6GTP3riKzw0pMl57mcFkL5axn4YumSpE42w5/lNTrMvcp/ez5boKt84QTuSliZZkPoeF/9y9gTTmSXc02rMXOWJvXeInCqxJv7Awv8YeZiZQnv3gPY/ZcsdIIRp25UcLIsLh50CEG3Tdm+c7dwDv8x7qnaphzRdzcEDoOmatqKSc1QcmWeoagpKp04y2Uop4L8T8bBw+vdL+0Wis/7uWzAb9Ic/TbUhM8KA86Uuklk7u0xk8s2WAR2m69l6l41F5X9Fg8IG3fKgvjzF9eMVOFc6ThKZKJsH9ZZDaKfZjIjRrvXcPXXQdiudrS4g6PsYoTx3i06Yj70hjrAD6GhaWBb98DEzYN4dSIthO1sqPFVQO3s2yQrerxV0u9zxWdGIMYMfBlWpUyZTtX1o=
