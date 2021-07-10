@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/proxy"
 
-	"github.com/thinkgos/go-socks5/statute"
+	"github.com/things-go/go-socks5/statute"
 )
 
 func TestSOCKS5_Connect(t *testing.T) {
