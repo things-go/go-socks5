@@ -78,4 +78,20 @@ func main() {
 
 ### Reference
 - [rfc1928](https://www.ietf.org/rfc/rfc1928.txt) 
-- original armon [go-sock5](https://github.com/armon/go-socks5)  
+- original armon's [go-sock5](https://github.com/armon/go-socks5) library
+
+## License
+
+This project is under MIT License. See the [LICENSE](LICENSE) file for the full license text.
+
+## Donation
+
+if package help you a lot,you can support us by:
+
+**Alipay**
+
+![alipay](https://github.com/thinkgos/thinkgos/blob/master/asserts/alipay.jpg)
+
+**WeChat Pay**
+
+![wxpay](https://github.com/thinkgos/thinkgos/blob/master/asserts/wxpay.jpg)
