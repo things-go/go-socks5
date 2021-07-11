@@ -22,10 +22,10 @@ type GPool interface {
 // Server is responsible for accepting connections and handling
 // the details of the SOCKS5 protocol
 type Server struct {
-	authMethods []Authenticator
-	// AuthMethods can be provided to implement custom authentication
+	// authMethods can be provided to implement authentication
 	// By default, "no-auth" mode is enabled.
 	// For password-based auth use UserPassAuthenticator.
+	authMethods []Authenticator
 	// If provided, username/password authentication is enabled,
 	// by appending a UserPassAuthenticator to AuthMethods. If not provided,
 	// and authMethods is nil, then "no-auth" mode is enabled.
@@ -78,7 +78,6 @@ func NewServer(opts ...Option) *Server {
 	if (len(srv.authMethods) == 0) && srv.credentials != nil {
 		srv.authMethods = []Authenticator{&UserPassAuthenticator{srv.credentials}}
 	}
-
 	if len(srv.authMethods) == 0 {
 		srv.authMethods = []Authenticator{&NoAuthAuthenticator{}}
 	}
