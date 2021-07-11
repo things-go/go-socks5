@@ -24,10 +24,7 @@ func WithBufferPool(bufferPool bufferpool.BufPool) Option {
 // For password-based auth use UserPassAuthenticator.
 func WithAuthMethods(authMethods []Authenticator) Option {
 	return func(s *Server) {
-		if len(authMethods) != 0 {
-			s.authCustomMethods = make([]Authenticator, 0, len(authMethods))
-			s.authCustomMethods = append(s.authCustomMethods, authMethods...)
-		}
+		s.authMethods = append(s.authMethods, authMethods...)
 	}
 }
 
