@@ -1,0 +1,25 @@
+name: Reviewdog
+
+on:
+  pull_request:
+    paths-ignore:
+      - '**.md'
+
+jobs:
+  golangci-lint:
+    name: runner / golangci-lint
+    runs-on: ubuntu-latest
+    steps:
+      # optionally use a specific version of Go rather than the default one
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.16.x'
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+
+      - name: golangci-lint
+        uses: reviewdog/action-golangci-lint@v1
+        with:
+          golangci_lint_flags: "-E goimports -E gocritic -E misspell -E revive"
