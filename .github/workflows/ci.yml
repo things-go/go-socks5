@@ -53,13 +53,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ matrix.go-version }}-go-ci
 
-      - name: Go test osx linux
-        if: runner.os == 'ubuntu-latest' || runner.os == 'macos-latest'
-        run: |
-          go test -v -benchmem -test.bench=".*" -coverprofile=coverage -covermode=atomic ./...
-
-      - name: Go test windows
-        if: runner.os == 'windows-latest'
+      - name: Unit test
         run: |
           go test -v -race -coverprofile=coverage -covermode=atomic ./...
 
