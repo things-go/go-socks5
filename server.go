@@ -127,7 +127,11 @@ func (sf *Server) ServeConn(conn net.Conn) error {
 	}
 
 	// Authenticate the connection
-	authContext, err = sf.authenticate(conn, bufConn, conn.RemoteAddr().String(), mr.Methods)
+	userAddr := ""
+	if conn.RemoteAddr() != nil {
+		userAddr = conn.RemoteAddr().String()
+	}
+	authContext, err = sf.authenticate(conn, bufConn, userAddr, mr.Methods)
 	if err != nil {
 		return fmt.Errorf("failed to authenticate: %w", err)
 	}
