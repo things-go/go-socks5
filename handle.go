@@ -336,7 +336,7 @@ func (sf *Server) Proxy(dst io.Writer, src io.Reader) error {
 	defer sf.bufferPool.Put(buf)
 	_, err := io.CopyBuffer(dst, src, buf[:cap(buf)])
 	if tcpConn, ok := dst.(closeWriter); ok {
-		tcpConn.CloseWrite() // nolint: errcheck
+		tcpConn.CloseWrite() //nolint: errcheck
 	}
 	return err
 }
