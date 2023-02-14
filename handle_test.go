@@ -41,7 +41,7 @@ func TestRequest_Connect(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, []byte("ping"), buf)
 
-		conn.Write([]byte("pong")) // nolint: errcheck
+		conn.Write([]byte("pong")) //nolint: errcheck
 	}()
 	lAddr := l.Addr().(*net.TCPAddr)
 
@@ -59,7 +59,7 @@ func TestRequest_Connect(t *testing.T) {
 		statute.ATYPIPv4, 127, 0, 0, 1, byte(lAddr.Port >> 8), byte(lAddr.Port),
 	})
 	// Send a ping
-	buf.Write([]byte("ping"))
+	buf.WriteString("ping")
 
 	// Handle the request
 	rsp := new(MockConn)
@@ -98,7 +98,7 @@ func TestRequest_Connect_RuleFail(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, []byte("ping"), buf)
 
-		conn.Write([]byte("pong")) // nolint: errcheck
+		conn.Write([]byte("pong")) //nolint: errcheck
 	}()
 	lAddr := l.Addr().(*net.TCPAddr)
 
@@ -117,7 +117,7 @@ func TestRequest_Connect_RuleFail(t *testing.T) {
 	})
 
 	// Send a ping
-	buf.Write([]byte("ping"))
+	buf.WriteString("ping")
 
 	// Handle the request
 	rsp := new(MockConn)
