@@ -2,6 +2,7 @@ package socks5
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"io"
 	"log"
@@ -111,23 +112,28 @@ func TestSOCKS5_Connect(t *testing.T) {
 func TestSOCKS5_Associate(t *testing.T) {
 	locIP := net.ParseIP("127.0.0.1")
 	// Create a local listener
-	lAddr := &net.UDPAddr{IP: locIP, Port: 12399}
-	l, err := net.ListenUDP("udp", lAddr)
+	serverAddr := &net.UDPAddr{IP: locIP, Port: 12399}
+	server, err := net.ListenUDP("udp", serverAddr)
 	require.NoError(t, err)
-	defer l.Close()
+	defer server.Close()
 
 	go func() {
 		buf := make([]byte, 2048)
 		for {
-			n, remote, err := l.ReadFrom(buf)
+			n, remote, err := server.ReadFrom(buf)
 			if err != nil {
 				return
 			}
 			require.Equal(t, []byte("ping"), buf[:n])
 
-			l.WriteTo([]byte("pong"), remote) //nolint: errcheck
+			server.WriteTo([]byte("pong"), remote) //nolint: errcheck
 		}
 	}()
+
+	clientAddr := &net.UDPAddr{IP: locIP, Port: 12499}
+	client, err := net.ListenUDP("udp", clientAddr)
+	require.NoError(t, err)
+	defer client.Close()
 
 	// Create a socks server
 	cator := UserPassAuthenticator{StaticCredentials{"foo": "bar"}}
@@ -158,8 +164,8 @@ func TestSOCKS5_Associate(t *testing.T) {
 		Reserved: 0,
 		DstAddr: statute.AddrSpec{
 			FQDN:     "",
-			IP:       locIP,
-			Port:     lAddr.Port,
+			IP:       clientAddr.IP,
+			Port:     clientAddr.Port,
 			AddrType: statute.ATYPIPv4,
 		},
 	}
@@ -185,19 +191,20 @@ func TestSOCKS5_Associate(t *testing.T) {
 	require.Equal(t, statute.VersionSocks5, rspHead.Version)
 	require.Equal(t, statute.RepSuccess, rspHead.Response)
 
+	ipByte := []byte(serverAddr.IP.To4())
+	portByte := make([]byte, 2)
+	binary.BigEndian.PutUint16(portByte, uint16(serverAddr.Port))
+
+	msgBytes := []byte{0, 0, 0, statute.ATYPIPv4}
+	msgBytes = append(msgBytes, ipByte...)
+	msgBytes = append(msgBytes, portByte...)
+	msgBytes = append(msgBytes, []byte("ping")...)
+	client.WriteTo(msgBytes, &net.UDPAddr{IP: locIP, Port: rspHead.BndAddr.Port}) //nolint: errcheck
 	// t.Logf("proxy bind listen port: %d", rspHead.BndAddr.Port)
-	udpConn, err := net.DialUDP("udp", nil, &net.UDPAddr{
-		IP:   locIP,
-		Port: rspHead.BndAddr.Port,
-	})
-	require.NoError(t, err)
-	// Send a ping
-	udpConn.Write(append([]byte{0, 0, 0, statute.ATYPIPv4, 0, 0, 0, 0, 0, 0}, []byte("ping")...)) //nolint: errcheck
 	response := make([]byte, 1024)
-	n, _, err := udpConn.ReadFrom(response)
+	n, _, err := client.ReadFrom(response)
 	require.NoError(t, err)
 	assert.Equal(t, []byte("pong"), response[n-4:n])
-
 	time.Sleep(time.Second * 1)
 }
 
