@@ -1,7 +1,6 @@
 package socks5
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -23,9 +22,9 @@ type Request struct {
 	statute.Request
 	// AuthContext provided during negotiation
 	AuthContext *AuthContext
-	// LocalAddr of the the network server listen
+	// LocalAddr of the network server listen
 	LocalAddr net.Addr
-	// RemoteAddr of the the network that sent the request
+	// RemoteAddr of the network that sent the request
 	RemoteAddr net.Addr
 	// DestAddr of the actual destination (might be affected by rewrite)
 	DestAddr *statute.AddrSpec
@@ -161,6 +160,8 @@ func (sf *Server) handleBind(_ context.Context, writer io.Writer, _ *Request) er
 }
 
 // handleAssociate is used to handle a connect command
+//
+//nolint:unparam
 func (sf *Server) handleAssociate(ctx context.Context, writer io.Writer, request *Request) error {
 	// Attempt to connect
 	dial := sf.dial
@@ -213,7 +214,7 @@ func (sf *Server) handleAssociate(ctx context.Context, writer io.Writer, request
 			}
 
 			// check src addr whether equal requst.DestAddr
-			srcEqual := ((request.DestAddr.IP.IsUnspecified()) || bytes.Equal(request.DestAddr.IP, srcAddr.IP)) && (request.DestAddr.Port == 0 || request.DestAddr.Port == srcAddr.Port)
+			srcEqual := ((request.DestAddr.IP.IsUnspecified()) || request.DestAddr.IP.Equal(srcAddr.IP)) && (request.DestAddr.Port == 0 || request.DestAddr.Port == srcAddr.Port) //nolint:lll
 			if !srcEqual {
 				continue
 			}
@@ -283,9 +284,8 @@ func (sf *Server) handleAssociate(ctx context.Context, writer io.Writer, request
 			bindLn.Close()
 			if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) {
 				return nil
-			} else {
-				return err
 			}
+			return err
 		}
 	}
 }
