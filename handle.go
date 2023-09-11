@@ -160,13 +160,11 @@ func (sf *Server) handleBind(_ context.Context, writer io.Writer, _ *Request) er
 }
 
 // handleAssociate is used to handle a connect command
-//
-//nolint:unparam
 func (sf *Server) handleAssociate(ctx context.Context, writer io.Writer, request *Request) error {
 	// Attempt to connect
 	dial := sf.dial
 	if dial == nil {
-		dial = func(ctx context.Context, net_, addr string) (net.Conn, error) {
+		dial = func(_ context.Context, net_, addr string) (net.Conn, error) {
 			return net.Dial(net_, addr)
 		}
 	}
