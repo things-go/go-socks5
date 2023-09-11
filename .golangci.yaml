@@ -2,13 +2,11 @@
 # https://github.com/golangci/golangci/wiki/Configuration
 linters-settings:
   depguard:
-    list-type: blacklist
-    packages:
-      # logging is allowed only by logutils.Log, logrus
-      # is allowed to use only in logutils package
-      - github.com/sirupsen/logrus
-    packages-with-error-message:
-      - github.com/sirupsen/logrus: "logging is allowed only by logutils.Log"
+    rules:
+      main:
+        deny:
+          - pkg: "github.com/sirupsen/logrus"
+            desc: not allowed
   exhaustive:
     default-signifies-exhaustive: false
   gci:
@@ -73,7 +71,7 @@ linters:
   disable-all: true
   enable:
     - bodyclose
-    - deadcode
+#    - deadcode
     - depguard
     - dogsled
     - errcheck
@@ -95,13 +93,13 @@ linters:
     - rowserrcheck
     - scopelint
     - staticcheck
-    - structcheck
+#    - structcheck
     - stylecheck
     - typecheck
     - unconvert
     - unparam
     - unused
-    - varcheck
+#    - varcheck
     - whitespace
     - unparam
   #  - interfacer
