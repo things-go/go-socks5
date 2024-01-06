@@ -67,9 +67,6 @@ func NewServer(opts ...Option) *Server {
 		resolver:    DNSResolver{},
 		rules:       NewPermitAll(),
 		logger:      NewLogger(log.New(io.Discard, "socks5: ", log.LstdFlags)),
-		dial: func(ctx context.Context, net_, addr string) (net.Conn, error) {
-			return net.Dial(net_, addr)
-		},
 	}
 
 	for _, opt := range opts {
