@@ -2,6 +2,7 @@ package socks5
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -42,6 +43,11 @@ func TestSOCKS5_Connect(t *testing.T) {
 	srv := NewServer(
 		WithAuthMethods([]Authenticator{cator}),
 		WithLogger(NewLogger(log.New(os.Stdout, "socks5: ", log.LstdFlags))),
+		WithDialAndRequest(func(ctx context.Context, network, addr string, request *Request) (net.Conn, error) {
+			require.Equal(t, network, "tcp")
+			require.Equal(t, addr, lAddr.String())
+			return net.Dial(network, addr)
+		}),
 	)
 
 	// Start listening
