@@ -108,13 +108,20 @@ func (sf *Server) handleRequest(write io.Writer, req *Request) error {
 // handleConnect is used to handle a connect command
 func (sf *Server) handleConnect(ctx context.Context, writer io.Writer, request *Request) error {
 	// Attempt to connect
-	dial := sf.dial
-	if dial == nil {
-		dial = func(ctx context.Context, net_, addr string) (net.Conn, error) {
-			return net.Dial(net_, addr)
+	var target net.Conn
+	var err error
+
+	if sf.dialWithRequest != nil {
+		target, err = sf.dialWithRequest(ctx, "tcp", request.DestAddr.String(), request)
+	} else {
+		dial := sf.dial
+		if dial == nil {
+			dial = func(ctx context.Context, net_, addr string) (net.Conn, error) {
+				return net.Dial(net_, addr)
+			}
 		}
+		target, err = dial(ctx, "tcp", request.DestAddr.String())
 	}
-	target, err := dial(ctx, "tcp", request.DestAddr.String())
 	if err != nil {
 		msg := err.Error()
 		resp := statute.RepHostUnreachable
