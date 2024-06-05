@@ -175,7 +175,18 @@ func (sf *Server) handleAssociate(ctx context.Context, writer io.Writer, request
 			return net.Dial(net_, addr)
 		}
 	}
-	bindLn, err := net.ListenUDP("udp", nil)
+	var udpAddr *net.UDPAddr
+	if sf.bindIP != nil {
+		var err error
+		udpAddr, err = net.ResolveUDPAddr("udp", sf.bindIP.String()+":0")
+		if err != nil {
+			if err := SendReply(writer, statute.RepServerFailure, nil); err != nil {
+				return fmt.Errorf("failed to send reply, %v", err)
+			}
+			return fmt.Errorf("resolve udp addr failed, %v", err)
+		}
+	}
+	bindLn, err := net.ListenUDP("udp", udpAddr)
 	if err != nil {
 		if err := SendReply(writer, statute.RepServerFailure, nil); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
