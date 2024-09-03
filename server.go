@@ -57,6 +57,10 @@ type Server struct {
 	userConnectHandle   func(ctx context.Context, writer io.Writer, request *Request) error
 	userBindHandle      func(ctx context.Context, writer io.Writer, request *Request) error
 	userAssociateHandle func(ctx context.Context, writer io.Writer, request *Request) error
+	// user's middleware
+	userConnectMiddlewares   MiddlewareChain
+	userBindMiddlewares      MiddlewareChain
+	userAssociateMiddlewares MiddlewareChain
 }
 
 // NewServer creates a new Server

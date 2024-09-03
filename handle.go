@@ -80,29 +80,40 @@ func (sf *Server) handleRequest(write io.Writer, req *Request) error {
 		return fmt.Errorf("bind to %v blocked by rules", req.RawDestAddr)
 	}
 
+	var last Handler
 	// Switch on the command
 	switch req.Command {
 	case statute.CommandConnect:
+		last = sf.handleConnect
 		if sf.userConnectHandle != nil {
-			return sf.userConnectHandle(ctx, write, req)
+			last = sf.userConnectHandle
 		}
-		return sf.handleConnect(ctx, write, req)
+		if len(sf.userConnectMiddlewares) != 0 {
+			return sf.userConnectMiddlewares.Execute(ctx, write, req, last)
+		}
 	case statute.CommandBind:
+		last = sf.handleBind
 		if sf.userBindHandle != nil {
-			return sf.userBindHandle(ctx, write, req)
+			last = sf.userBindHandle
 		}
-		return sf.handleBind(ctx, write, req)
+		if len(sf.userBindMiddlewares) != 0 {
+			return sf.userBindMiddlewares.Execute(ctx, write, req, last)
+		}
 	case statute.CommandAssociate:
+		last = sf.handleAssociate
 		if sf.userAssociateHandle != nil {
-			return sf.userAssociateHandle(ctx, write, req)
+			last = sf.userAssociateHandle
 		}
-		return sf.handleAssociate(ctx, write, req)
+		if len(sf.userAssociateMiddlewares) != 0 {
+			return sf.userAssociateMiddlewares.Execute(ctx, write, req, last)
+		}
 	default:
 		if err := SendReply(write, statute.RepCommandNotSupported, nil); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
 		}
 		return fmt.Errorf("unsupported command[%v]", req.Command)
 	}
+	return last(ctx, write, req)
 }
 
 // handleConnect is used to handle a connect command
