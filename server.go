@@ -94,7 +94,7 @@ func (sf *Server) ListenAndServe(network, addr string) error {
 	return sf.Serve(l)
 }
 
-// ListenAndServe is used to create a listener and serve on it
+// ListenAndServeTLS is used to create a TLS listener and serve on it
 func (sf *Server) ListenAndServeTLS(network, addr string, c *tls.Config) error {
 	l, err := tls.Listen(network, addr, c)
 	if err != nil {
