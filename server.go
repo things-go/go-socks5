@@ -3,6 +3,7 @@ package socks5
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -87,6 +88,15 @@ func NewServer(opts ...Option) *Server {
 // ListenAndServe is used to create a listener and serve on it
 func (sf *Server) ListenAndServe(network, addr string) error {
 	l, err := net.Listen(network, addr)
+	if err != nil {
+		return err
+	}
+	return sf.Serve(l)
+}
+
+// ListenAndServe is used to create a listener and serve on it
+func (sf *Server) ListenAndServeTLS(network, addr string, c *tls.Config) error {
+	l, err := tls.Listen(network, addr, c)
 	if err != nil {
 		return err
 	}
