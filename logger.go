@@ -6,6 +6,7 @@ import (
 
 // Logger is used to provide debug logger
 type Logger interface {
+	Infof(format string, arg ...interface{})
 	Errorf(format string, arg ...interface{})
 }
 
@@ -22,4 +23,9 @@ func NewLogger(l *log.Logger) *Std {
 // Errorf implement interface Logger
 func (sf Std) Errorf(format string, args ...interface{}) {
 	sf.Logger.Printf("[E]: "+format, args...)
+}
+
+// Infof implement interface Logger
+func (sf Std) Infof(format string, args ...interface{}) {
+	sf.Logger.Printf("[I]: "+format, args...)
 }

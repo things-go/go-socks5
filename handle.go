@@ -80,6 +80,8 @@ func (sf *Server) handleRequest(write io.Writer, req *Request) error {
 		return fmt.Errorf("bind to %v blocked by rules", req.RawDestAddr)
 	}
 
+	sf.logger.Infof("handle (%d) %s -> %s", req.Command, req.RemoteAddr, req.DestAddr)
+
 	var last Handler
 	// Switch on the command
 	switch req.Command {
