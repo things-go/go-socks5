@@ -3,7 +3,7 @@ name: Reviewdog
 on:
   pull_request:
     paths-ignore:
-      - '**.md'
+      - "**.md"
 
 jobs:
   golangci-lint:
@@ -14,13 +14,13 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21.x'
+          go-version: "1.24.x"
 
       - name: Check out code into the Go module directory
         uses: actions/checkout@v4
 
-      - name: golangci-lint
-        uses: reviewdog/action-golangci-lint@v2
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v7
         with:
-          args: --disable-all -E goimports,misspell,whitespace
+          args: -E misspell,whitespace,unconvert,noctx,musttag,errchkjson,errname,exhaustive,exptostd
           version: latest

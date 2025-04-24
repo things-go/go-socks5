@@ -109,7 +109,7 @@ func (sf *Server) ListenAndServeTLS(network, addr string, c *tls.Config) error {
 
 // Serve is used to serve connections from a listener
 func (sf *Server) Serve(l net.Listener) error {
-	defer l.Close()
+	defer l.Close()// nolint: errcheck
 	for {
 		conn, err := l.Accept()
 		if err != nil {
@@ -127,7 +127,7 @@ func (sf *Server) Serve(l net.Listener) error {
 func (sf *Server) ServeConn(conn net.Conn) error {
 	var authContext *AuthContext
 
-	defer conn.Close()
+	defer conn.Close()// nolint: errcheck
 
 	bufConn := bufio.NewReader(conn)
 
@@ -160,13 +160,13 @@ func (sf *Server) ServeConn(conn net.Conn) error {
 		return fmt.Errorf("failed to read destination address, %w", err)
 	}
 
-	if request.Request.Command != statute.CommandConnect &&
-		request.Request.Command != statute.CommandBind &&
-		request.Request.Command != statute.CommandAssociate {
+	if request.Request.Command != statute.CommandConnect && // nolint: staticcheck
+		request.Request.Command != statute.CommandBind && // nolint: staticcheck
+		request.Request.Command != statute.CommandAssociate { // nolint: staticcheck
 		if err := SendReply(conn, statute.RepCommandNotSupported, nil); err != nil {
 			return fmt.Errorf("failed to send reply, %v", err)
 		}
-		return fmt.Errorf("unrecognized command[%d]", request.Request.Command)
+		return fmt.Errorf("unrecognized command[%d]", request.Request.Command) // nolint: staticcheck
 	}
 
 	request.AuthContext = authContext

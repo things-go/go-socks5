@@ -34,7 +34,7 @@ func TestRequest_Connect(t *testing.T) {
 	go func() {
 		conn, err := l.Accept()
 		require.NoError(t, err)
-		defer conn.Close()
+		defer conn.Close() // nolint: errcheck
 
 		buf := make([]byte, 4)
 		_, err = io.ReadAtLeast(conn, buf, 4)
@@ -91,7 +91,7 @@ func TestRequest_Connect_RuleFail(t *testing.T) {
 	go func() {
 		conn, err := l.Accept()
 		require.NoError(t, err)
-		defer conn.Close()
+		defer conn.Close() // nolint: errcheck
 
 		buf := make([]byte, 4)
 		_, err = io.ReadAtLeast(conn, buf, 4)

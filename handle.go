@@ -146,7 +146,7 @@ func (sf *Server) handleConnect(ctx context.Context, writer io.Writer, request *
 		}
 		return fmt.Errorf("connect to %v failed, %v", request.RawDestAddr, err)
 	}
-	defer target.Close()
+	defer target.Close() // nolint: errcheck
 
 	// Send success
 	if err := SendReply(writer, statute.RepSuccess, target.LocalAddr()); err != nil {
@@ -206,12 +206,12 @@ func (sf *Server) handleAssociate(ctx context.Context, writer io.Writer, request
 		bufPool := sf.bufferPool.Get()
 		defer func() {
 			sf.bufferPool.Put(bufPool)
-			bindLn.Close()
+			bindLn.Close()// nolint: errcheck
 			conns.Range(func(key, value any) bool {
 				if connTarget, ok := value.(net.Conn); !ok {
 					sf.logger.Errorf("conns has illegal item %v:%v", key, value)
 				} else {
-					connTarget.Close()
+					connTarget.Close()// nolint: errcheck
 				}
 				return true
 			})
@@ -250,7 +250,7 @@ func (sf *Server) handleAssociate(ctx context.Context, writer io.Writer, request
 				sf.goFunc(func() {
 					bufPool := sf.bufferPool.Get()
 					defer func() {
-						targetNew.Close()
+						targetNew.Close()// nolint: errcheck
 						conns.Delete(connKey)
 						sf.bufferPool.Put(bufPool)
 					}()
@@ -297,7 +297,7 @@ func (sf *Server) handleAssociate(ctx context.Context, writer io.Writer, request
 		_, err := request.Reader.Read(buf[:cap(buf)])
 		// sf.logger.Errorf("read data from client %s, %d bytesm, err is %+v", request.RemoteAddr.String(), num, err)
 		if err != nil {
-			bindLn.Close()
+			bindLn.Close()// nolint: errcheck
 			if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) {
 				return nil
 			}

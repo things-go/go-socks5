@@ -28,7 +28,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 		go func() {
 			conn, err := l.Accept()
 			require.NoError(t, err)
-			defer conn.Close()
+			defer conn.Close() // nolint: errcheck
 
 			buf := make([]byte, 4)
 			_, err = io.ReadAtLeast(conn, buf, 4)
@@ -124,7 +124,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 		go func() {
 			conn, err := l.Accept()
 			require.NoError(t, err)
-			defer conn.Close()
+			defer conn.Close() // nolint: errcheck
 
 			buf := make([]byte, 4)
 			_, err = io.ReadAtLeast(conn, buf, 4)
@@ -157,9 +157,9 @@ func TestSOCKS5_Connect(t *testing.T) {
 					},
 				}
 				_, err := writer.Write(rsp.Bytes())
-				writer.Write([]byte("gotcha!"))
+				writer.Write([]byte("gotcha!")) // nolint: errcheck
 				if w, ok := writer.(closeWriter); ok {
-					w.CloseWrite()
+					w.CloseWrite() // nolint: errcheck
 				}
 				return err
 			}),
@@ -240,7 +240,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 		go func() {
 			conn, err := l.Accept()
 			require.NoError(t, err)
-			defer conn.Close()
+			defer conn.Close() // nolint: errcheck
 
 			buf := make([]byte, 4)
 			_, err = io.ReadAtLeast(conn, buf, 4)
@@ -344,7 +344,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 		go func() {
 			conn, err := l.Accept()
 			require.NoError(t, err)
-			defer conn.Close()
+			defer conn.Close() // nolint: errcheck
 
 			buf := make([]byte, 4)
 			_, err = io.ReadAtLeast(conn, buf, 4)
@@ -434,7 +434,6 @@ func TestSOCKS5_Connect(t *testing.T) {
 		assert.Equal(t, []byte{0x5, 0x2, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, out)
 		assert.True(t, middlewareCalled, "middleware not called")
 	})
-
 }
 
 func TestSOCKS5_Associate(t *testing.T) {
@@ -444,7 +443,7 @@ func TestSOCKS5_Associate(t *testing.T) {
 		serverAddr := &net.UDPAddr{IP: locIP, Port: 12399}
 		server, err := net.ListenUDP("udp", serverAddr)
 		require.NoError(t, err)
-		defer server.Close()
+		defer server.Close() // nolint: errcheck
 
 		go func() {
 			buf := make([]byte, 2048)
@@ -462,7 +461,7 @@ func TestSOCKS5_Associate(t *testing.T) {
 		clientAddr := &net.UDPAddr{IP: locIP, Port: 12499}
 		client, err := net.ListenUDP("udp", clientAddr)
 		require.NoError(t, err)
-		defer client.Close()
+		defer client.Close() // nolint: errcheck
 
 		// Create a socks server
 		cator := UserPassAuthenticator{StaticCredentials{"foo": "bar"}}
@@ -545,7 +544,7 @@ func TestSOCKS5_Associate(t *testing.T) {
 		serverAddr := &net.UDPAddr{IP: locIP, Port: 12399}
 		server, err := net.ListenUDP("udp", serverAddr)
 		require.NoError(t, err)
-		defer server.Close()
+		defer server.Close() // nolint: errcheck
 
 		go func() {
 			buf := make([]byte, 2048)
@@ -563,7 +562,7 @@ func TestSOCKS5_Associate(t *testing.T) {
 		clientAddr := &net.UDPAddr{IP: locIP, Port: 12499}
 		client, err := net.ListenUDP("udp", clientAddr)
 		require.NoError(t, err)
-		defer client.Close()
+		defer client.Close() // nolint: errcheck
 
 		// Create a socks server
 		cator := UserPassAuthenticator{StaticCredentials{"foo": "bar"}}
@@ -653,7 +652,7 @@ func Test_SocksWithProxy(t *testing.T) {
 	go func() {
 		conn, err := l.Accept()
 		require.NoError(t, err)
-		defer conn.Close()
+		defer conn.Close() // nolint: errcheck
 
 		buf := make([]byte, 4)
 		_, err = io.ReadAtLeast(conn, buf, 4)
