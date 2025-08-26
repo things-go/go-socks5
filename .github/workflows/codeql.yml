@@ -10,11 +10,6 @@ on:
   schedule:
     - cron: "0 5 * * 6"
 
-permissions:
-  contents: read
-  packages: read
-  issues: write
-
 jobs:
   analyze:
     name: Analyze
