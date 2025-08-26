@@ -12,6 +12,8 @@ on:
 
 permissions:
   contents: read
+  packages: read
+  issues: write
 
 jobs:
   analyze:
