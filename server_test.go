@@ -22,7 +22,7 @@ import (
 func TestSOCKS5_Connect(t *testing.T) {
 	t.Run("connect", func(t *testing.T) {
 		// Create a local listener
-		l, err := net.Listen("tcp", "127.0.0.1:0")
+		l, err := net.Listen("tcp", "127.0.0.1:0") // nolint: noctx
 		require.NoError(t, err)
 
 		go func() {
@@ -47,7 +47,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 			WithDialAndRequest(func(ctx context.Context, network, addr string, request *Request) (net.Conn, error) {
 				require.Equal(t, network, "tcp")
 				require.Equal(t, addr, lAddr.String())
-				return net.Dial(network, addr)
+				return net.Dial(network, addr) // nolint: noctx
 			}),
 		)
 
@@ -59,7 +59,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 
 		// Get a local conn
-		conn, err := net.Dial("tcp", "127.0.0.1:12365")
+		conn, err := net.Dial("tcp", "127.0.0.1:12365") // nolint: noctx
 		require.NoError(t, err)
 
 		// Connect, auth and connec to local
@@ -118,7 +118,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 
 	t.Run("connect/customerHandler", func(t *testing.T) {
 		// Create a local listener
-		l, err := net.Listen("tcp", "127.0.0.1:0")
+		l, err := net.Listen("tcp", "127.0.0.1:0") // nolint: noctx
 		require.NoError(t, err)
 
 		go func() {
@@ -143,7 +143,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 			WithDialAndRequest(func(ctx context.Context, network, addr string, request *Request) (net.Conn, error) {
 				require.Equal(t, network, "tcp")
 				require.Equal(t, addr, lAddr.String())
-				return net.Dial(network, addr)
+				return net.Dial(network, addr) // nolint: noctx
 			}),
 			WithConnectHandle(func(ctx context.Context, writer io.Writer, request *Request) error {
 				rsp := statute.Reply{
@@ -173,7 +173,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 
 		// Get a local conn
-		conn, err := net.Dial("tcp", "127.0.0.1:12369")
+		conn, err := net.Dial("tcp", "127.0.0.1:12369") // nolint: noctx
 		require.NoError(t, err)
 
 		// Connect, auth and connec to local
@@ -234,7 +234,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 		var middlewareCalled bool
 
 		// Create a local listener
-		l, err := net.Listen("tcp", "127.0.0.1:0")
+		l, err := net.Listen("tcp", "127.0.0.1:0") // nolint: noctx
 		require.NoError(t, err)
 
 		go func() {
@@ -259,7 +259,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 			WithDialAndRequest(func(ctx context.Context, network, addr string, request *Request) (net.Conn, error) {
 				require.Equal(t, network, "tcp")
 				require.Equal(t, addr, lAddr.String())
-				return net.Dial(network, addr)
+				return net.Dial(network, addr) // nolint: noctx
 			}),
 			WithConnectMiddleware(func(ctx context.Context, writer io.Writer, request *Request) error {
 				middlewareCalled = true
@@ -276,7 +276,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 
 		// Get a local conn
-		conn, err := net.Dial("tcp", "127.0.0.1:12366")
+		conn, err := net.Dial("tcp", "127.0.0.1:12366") // nolint: noctx
 		require.NoError(t, err)
 
 		// Connect, auth and connec to local
@@ -338,7 +338,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 		var middlewareCalled bool
 
 		// Create a local listener
-		l, err := net.Listen("tcp", "127.0.0.1:0")
+		l, err := net.Listen("tcp", "127.0.0.1:0") // nolint: noctx
 		require.NoError(t, err)
 
 		go func() {
@@ -363,7 +363,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 			WithDialAndRequest(func(ctx context.Context, network, addr string, request *Request) (net.Conn, error) {
 				require.Equal(t, network, "tcp")
 				require.Equal(t, addr, lAddr.String())
-				return net.Dial(network, addr)
+				return net.Dial(network, addr) // nolint: noctx
 			}),
 			WithConnectMiddleware(func(ctx context.Context, writer io.Writer, request *Request) error {
 				middlewareCalled = true
@@ -380,7 +380,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 
 		// Get a local conn
-		conn, err := net.Dial("tcp", "127.0.0.1:12367")
+		conn, err := net.Dial("tcp", "127.0.0.1:12367") // nolint: noctx
 		require.NoError(t, err)
 
 		// Connect, auth and connec to local
@@ -477,7 +477,7 @@ func TestSOCKS5_Associate(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 
 		// Get a local conn
-		conn, err := net.Dial("tcp", "127.0.0.1:12355")
+		conn, err := net.Dial("tcp", "127.0.0.1:12355") // nolint: noctx
 		require.NoError(t, err)
 
 		// Connect, auth and connec to local
@@ -583,7 +583,7 @@ func TestSOCKS5_Associate(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 
 		// Get a local conn
-		conn, err := net.Dial("tcp", "127.0.0.1:12356")
+		conn, err := net.Dial("tcp", "127.0.0.1:12356") // nolint: noctx
 		require.NoError(t, err)
 
 		// Connect, auth and connec to local
@@ -646,7 +646,7 @@ func TestSOCKS5_Associate(t *testing.T) {
 
 func Test_SocksWithProxy(t *testing.T) {
 	// Create a local listener
-	l, err := net.Listen("tcp", "127.0.0.1:0")
+	l, err := net.Listen("tcp", "127.0.0.1:0") // nolint: noctx
 	require.NoError(t, err)
 
 	go func() {

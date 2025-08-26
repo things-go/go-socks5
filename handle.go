@@ -128,7 +128,7 @@ func (sf *Server) handleConnect(ctx context.Context, writer io.Writer, request *
 		dial := sf.dial
 		if dial == nil {
 			dial = func(ctx context.Context, net_, addr string) (net.Conn, error) {
-				return net.Dial(net_, addr)
+				return net.Dial(net_, addr) // nolint: noctx
 			}
 		}
 		target, err = dial(ctx, "tcp", request.DestAddr.String())
@@ -183,7 +183,7 @@ func (sf *Server) handleAssociate(ctx context.Context, writer io.Writer, request
 	dial := sf.dial
 	if dial == nil {
 		dial = func(_ context.Context, net_, addr string) (net.Conn, error) {
-			return net.Dial(net_, addr)
+			return net.Dial(net_, addr) // nolint: noctx
 		}
 	}
 

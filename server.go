@@ -94,7 +94,7 @@ func NewServer(opts ...Option) *Server {
 
 // ListenAndServe is used to create a listener and serve on it
 func (sf *Server) ListenAndServe(network, addr string) error {
-	l, err := net.Listen(network, addr)
+	l, err := net.Listen(network, addr) // nolint: noctx
 	if err != nil {
 		return err
 	}

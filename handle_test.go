@@ -28,7 +28,7 @@ func (m *MockConn) RemoteAddr() net.Addr {
 
 func TestRequest_Connect(t *testing.T) {
 	// Create a local listener
-	l, err := net.Listen("tcp", "127.0.0.1:0")
+	l, err := net.Listen("tcp", "127.0.0.1:0") // nolint: noctx
 	require.NoError(t, err)
 
 	go func() {
@@ -85,7 +85,7 @@ func TestRequest_Connect(t *testing.T) {
 
 func TestRequest_Connect_RuleFail(t *testing.T) {
 	// Create a local listener
-	l, err := net.Listen("tcp", "127.0.0.1:0")
+	l, err := net.Listen("tcp", "127.0.0.1:0") // nolint: noctx
 	require.NoError(t, err)
 
 	go func() {

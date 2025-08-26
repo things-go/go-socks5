@@ -3,12 +3,15 @@ name: CodeQL
 on:
   push:
     paths-ignore:
-      - '**.md'
+      - "**.md"
   pull_request:
     paths-ignore:
-      - '**.md'
+      - "**.md"
   schedule:
-    - cron: '0 5 * * 6'
+    - cron: "0 5 * * 6"
+
+permissions:
+  contents: read
 
 jobs:
   analyze:
