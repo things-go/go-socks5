@@ -42,6 +42,9 @@ type Server struct {
 	rewriter AddressRewriter
 	// bindIP is used for bind or udp associate
 	bindIP net.IP
+	// useBindIpResolveAsUdpAddr is used to resolve bindIP as udp address
+	// default false, use  &net.UDPAddr{IP: request.LocalAddr.(*net.TCPAddr).IP, Port: 0}
+	useBindIpBaseResolveAsUdpAddr bool
 	// logger can be used to provide a custom log target.
 	// Defaults to io.Discard.
 	logger Logger
@@ -109,7 +112,7 @@ func (sf *Server) ListenAndServeTLS(network, addr string, c *tls.Config) error {
 
 // Serve is used to serve connections from a listener
 func (sf *Server) Serve(l net.Listener) error {
-	defer l.Close()// nolint: errcheck
+	defer l.Close() // nolint: errcheck
 	for {
 		conn, err := l.Accept()
 		if err != nil {
@@ -127,7 +130,7 @@ func (sf *Server) Serve(l net.Listener) error {
 func (sf *Server) ServeConn(conn net.Conn) error {
 	var authContext *AuthContext
 
-	defer conn.Close()// nolint: errcheck
+	defer conn.Close() // nolint: errcheck
 
 	bufConn := bufio.NewReader(conn)
 

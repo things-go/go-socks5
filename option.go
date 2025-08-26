@@ -167,3 +167,11 @@ func WithAssociateMiddleware(m Middleware) Option {
 		s.userAssociateMiddlewares = append(s.userAssociateMiddlewares, m)
 	}
 }
+
+// WithUseBindIpBaseResolveAsUdpAddr is used to resolve bindIP as udp address
+// default false, use  &net.UDPAddr{IP: request.LocalAddr.(*net.TCPAddr).IP, Port: 0}
+func WithUseBindIpBaseResolveAsUdpAddr(b bool) Option {
+	return func(s *Server) {
+		s.useBindIpBaseResolveAsUdpAddr = b
+	}
+}
