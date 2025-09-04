@@ -15,7 +15,7 @@ jobs:
     steps:
       # optionally use a specific version of Go rather than the default one
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: "1.24.x"
 
