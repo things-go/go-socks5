@@ -3,7 +3,10 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+      day: "friday"
+      time: "04:30"
+      timezone: "Asia/Shanghai"
     commit-message:
       prefix: "chore"
       include: "scope"
@@ -11,7 +14,10 @@ updates:
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+      day: "friday"
+      time: "04:30"
+      timezone: "Asia/Shanghai"
     commit-message:
       prefix: "chore"
       include: "scope"
