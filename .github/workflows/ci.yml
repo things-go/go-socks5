@@ -17,11 +17,11 @@ env:
 
 jobs:
   build:
-    name: Test on ${{matrix.os}} @Go${{ matrix.go-version }}
-    runs-on: ${{matrix.os}}
+    name: Test on ${{ matrix.os }} @Go${{ matrix.go-version }}
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        go-version: ["1.18.x", "1.24.x"]
+        go-version: ["1.18.x", "1.25.x"]
         os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
@@ -29,6 +29,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go-version }}
+          cache: false
 
       - name: Check out code into the Go module directory
         uses: actions/checkout@v5
@@ -50,19 +51,21 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ steps.vars.outputs.go_cache }}
+            ${{ steps.vars.outputs.GO_CACHE }}
             ~/go/pkg/mod
           key: ${{ runner.os }}-${{ matrix.go-version }}-go-ci-${{ hashFiles('**/go.sum') }}
           restore-keys: |
-            ${{ runner.os }}-${{ matrix.go-version }}-go-ci
+            ${{ runner.os }}-${{ matrix.go-version }}-go-ci-
 
       - name: Unit test
         run: |
           go test -v -race -coverprofile=coverage -covermode=atomic ./...
 
       - name: Upload coverage to Codecov
+        if: matrix.os == 'ubuntu-latest' && matrix.go-version == '1.25.x'
         uses: codecov/codecov-action@v5
         with:
           files: ./coverage
           flags: unittests
+          token: ${{ secrets.CODECOV_TOKEN }}
           verbose: true
