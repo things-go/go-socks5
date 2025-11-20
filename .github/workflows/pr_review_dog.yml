@@ -21,7 +21,7 @@ jobs:
           cache: true
 
       - name: Check out code into the Go module directory
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v9
