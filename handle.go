@@ -196,10 +196,18 @@ func (sf *Server) handleAssociate(ctx context.Context, writer io.Writer, request
 				if err := SendReply(writer, statute.RepServerFailure, nil); err != nil {
 					return fmt.Errorf("failed to send reply, %v", err)
 				}
+				return fmt.Errorf("failed to resolve udp addr, %v", err)
 			}
 		}
 	} else {
-		udpAddr = &net.UDPAddr{IP: request.LocalAddr.(*net.TCPAddr).IP, Port: 0}
+		tcpAddr, ok := request.LocalAddr.(*net.TCPAddr)
+		if !ok {
+			if err := SendReply(writer, statute.RepServerFailure, nil); err != nil {
+				return fmt.Errorf("failed to send reply, %v", err)
+			}
+			return fmt.Errorf("local address is not TCP: %T", request.LocalAddr)
+		}
+		udpAddr = &net.UDPAddr{IP: tcpAddr.IP, Port: 0}
 	}
 	bindLn, err := net.ListenUDP("udp", udpAddr)
 	if err != nil {
@@ -297,8 +305,13 @@ func (sf *Server) handleAssociate(ctx context.Context, writer io.Writer, request
 					return
 				}
 			} else {
-				if _, err := target.(net.Conn).Write(pk.Data); err != nil {
-					sf.logger.Errorf("write data to remote server %s failed, %v", target.(net.Conn).RemoteAddr().String(), err)
+				conn, ok := target.(net.Conn)
+				if !ok {
+					sf.logger.Errorf("invalid connection type in pool: %T", target)
+					return
+				}
+				if _, err := conn.Write(pk.Data); err != nil {
+					sf.logger.Errorf("write data to remote server %s failed, %v", conn.RemoteAddr().String(), err)
 					return
 				}
 			}
