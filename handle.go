@@ -277,7 +277,7 @@ func (sf *Server) handleAssociate(ctx context.Context, writer io.Writer, request
 							if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) {
 								return
 							}
-							sf.logger.Errorf("read data from remote %s failed, %v", targetNew.RemoteAddr().String(), err)
+							sf.logger.Errorf("read data from remote %s failed, %v", addrString(targetNew.RemoteAddr()), err)
 							return
 						}
 						tmpBufPool := sf.bufferPool.Get()
@@ -293,12 +293,12 @@ func (sf *Server) handleAssociate(ctx context.Context, writer io.Writer, request
 					}
 				})
 				if _, err := targetNew.Write(pk.Data); err != nil {
-					sf.logger.Errorf("write data to remote server %s failed, %v", targetNew.RemoteAddr().String(), err)
+					sf.logger.Errorf("write data to remote server %s failed, %v", addrString(targetNew.RemoteAddr()), err)
 					return
 				}
 			} else {
 				if _, err := target.(net.Conn).Write(pk.Data); err != nil {
-					sf.logger.Errorf("write data to remote server %s failed, %v", target.(net.Conn).RemoteAddr().String(), err)
+					sf.logger.Errorf("write data to remote server %s failed, %v", addrString(target.(net.Conn).RemoteAddr()), err)
 					return
 				}
 			}
@@ -358,6 +358,14 @@ func SendReply(w io.Writer, rep uint8, bindAddr net.Addr) error {
 
 type closeWriter interface {
 	CloseWrite() error
+}
+
+// addrString returns the string representation of a net.Addr, or "<nil>" if the address is nil.
+func addrString(addr net.Addr) string {
+	if addr == nil {
+		return "<nil>"
+	}
+	return addr.String()
 }
 
 // Proxy is used to suffle data from src to destination, and sends errors
