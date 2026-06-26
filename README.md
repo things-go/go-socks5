@@ -36,9 +36,9 @@ The package still needs the following:
 
 ### Installation
 
-Use go get.
+Use go install.
 ```bash
-    go get github.com/things-go/go-socks5
+    go install github.com/things-go/go-socks5@latest
 ```
 
 Then import the socks5 server package into your own code.
