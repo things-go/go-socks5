@@ -1,6 +1,7 @@
 package statute
 
 import (
+	"fmt"
 	"net"
 	"reflect"
 	"testing"
@@ -138,5 +139,25 @@ func TestParseDatagram(t *testing.T) {
 				t.Errorf("ParseDatagram() gotDa = %v, want %v", gotDa, tt.wantDa)
 			}
 		})
+	}
+}
+
+func TestParseDatagramRoundTripShortPayload(t *testing.T) {
+	for _, addr := range []string{"127.0.0.1:8080", "[::1]:8080", "a:8080", "localhost:8080"} {
+		for _, data := range [][]byte{{}, {1}, {1, 2}} {
+			t.Run(fmt.Sprintf("%s/%d", addr, len(data)), func(t *testing.T) {
+				packet, err := NewDatagram(addr, data)
+				require.NoError(t, err)
+				wire := packet.Bytes()
+				parsed, err := ParseDatagram(wire)
+				require.NoError(t, err)
+				require.Equal(t, packet.DstAddr, parsed.DstAddr)
+				require.Equal(t, data, parsed.Data)
+				for n := 0; n < len(packet.Header()); n++ {
+					_, err := ParseDatagram(wire[:n])
+					require.Error(t, err, "truncated header length %d", n)
+				}
+			})
+		}
 	}
 }
