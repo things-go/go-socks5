@@ -41,7 +41,7 @@ func NewDatagram(destAddr string, data []byte) (p Datagram, err error) {
 //nolint:nakedret
 func ParseDatagram(b []byte) (da Datagram, err error) {
 	if len(b) < 5 { // enough data to read the address type and domain length
-		err = errors.New("datagram to short")
+		err = errors.New("datagram too short")
 		return
 	}
 	// ignore RSV
@@ -53,7 +53,7 @@ func ParseDatagram(b []byte) (da Datagram, err error) {
 	case ATYPIPv4:
 		headLen += net.IPv4len + 2
 		if len(b) < headLen {
-			err = errors.New("datagram to short")
+			err = errors.New("datagram too short")
 			return
 		}
 		da.DstAddr.IP = net.IPv4(b[4], b[5], b[6], b[7])
@@ -61,7 +61,7 @@ func ParseDatagram(b []byte) (da Datagram, err error) {
 	case ATYPIPv6:
 		headLen += net.IPv6len + 2
 		if len(b) < headLen {
-			err = errors.New("datagram to short")
+			err = errors.New("datagram too short")
 			return
 		}
 
@@ -71,7 +71,7 @@ func ParseDatagram(b []byte) (da Datagram, err error) {
 		addrLen := int(b[4])
 		headLen += 1 + addrLen + 2
 		if len(b) < headLen {
-			err = errors.New("datagram to short")
+			err = errors.New("datagram too short")
 			return
 		}
 		da.DstAddr.FQDN = string(b[5 : 5+addrLen])

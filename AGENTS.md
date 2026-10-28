@@ -91,7 +91,7 @@ go mod verify
 
 ## Development Notes
 
-- **Go version**: 1.18+ (module supports up to 1.26.x per CI matrix).
+- **Go version**: 1.18+ (module supports up to 1.27.x per CI matrix).
 - **Dependencies**: Minimal (`golang.org/x/net`, `github.com/stretchr/testify` for tests).
 - **Testing**: Use `-race` flag for data‑race detection. Coverage reports are uploaded to Codecov.
 - **Linting**: The CI runs a subset of golangci-lint checkers; you can run the same locally.
